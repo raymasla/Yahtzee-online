@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Yahtzee Online (優化圖示版)</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #ecf0f1;
+            --accent-color: #e67e22;
+            --confirm-color: #27ae60;
+            --secondary-bg: #2c3e50;
+            --die-size: 42px;
+            --dot-color: #000;
+            --die-base-color: #fff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            margin: 0;
+            padding: 10px;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        .view-section {
+            width: 100%;
+            max-width: 600px;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        
+        .active-view { display: flex; }
+
+        h1 { margin: 5px 0 10px 0; color: var(--accent-color); font-size: 1.5rem; }
+        
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 80%;
+            margin-top: 20px;
+        }
+        
+        .menu-btn {
+            background: var(--secondary-bg);
+            color: white;
+            border: 2px solid var(--accent-color);
+            padding: 15px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .menu-btn:active { transform: scale(0.98); }
+        .menu-btn.primary { background: var(--accent-color); border-color: #d35400; }
+        
+        input[type="text"], input[type="number"] {
+            padding: 10px;
+            font-size: 1rem;
+            border-radius: 5px;
+            border: none;
+            width: 80%;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .room-list {
+            width: 100%;
+            background: #222;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .room-item {
+            background: #333;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .room-status { font-size: 0.8rem; color: #aaa; }
+        .join-btn {
+            background: var(--confirm-color);
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .players-bar {
+            display: flex;
+            width: 100%;
+            gap: 5px;
+            margin-bottom: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        .player-badge {
+            background: #333;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            border: 2px solid transparent;
+            opacity: 0.7;
+        }
+        .player-badge.active-turn {
+            border-color: var(--accent-color);
+            background: #444;
+            opacity: 1;
+            font-weight: bold;
+        }
+        .player-badge.is-me {
+            color: #3498db;
+        }
+
+        .dice-board {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin: 15px 0;
+            perspective: 600px;
+            height: var(--die-size);
+        }
+
+        .cube-wrapper { width: var(--die-size); height: var(--die-size); cursor: pointer; }
+        .cube {
+            width: 100%; height: 100%; position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(0deg) rotateY(0deg);
+            transition: transform 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .face {
+            position: absolute; width: var(--die-size); height: var(--die-size);
+            background: var(--die-base-color); border: 1px solid #999;
+            border-radius: 6px; box-shadow: inset 0 0 5px rgba(0,0,0,0.2);
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            grid-template-rows: repeat(3, 1fr);
+            padding: 4px; 
+            box-sizing: border-box;
+            gap: 2px;
+        }
+        .dot {
+            background-color: var(--dot-color); 
+            border-radius: 50%;
+            width: 100%; 
+            height: 100%;
+            display: block;
+        }
+        
+        .face-1 .dot:nth-child(1) { grid-area: 2 / 2; }
+        .face-2 .dot:nth-child(1) { grid-area: 1 / 1; } 
+        .face-2 .dot:nth-child(2) { grid-area: 3 / 3; }
+        .face-3 .dot:nth-child(1) { grid-area: 1 / 1; } 
+        .face-3 .dot:nth-child(2) { grid-area: 2 / 2; } 
+        .face-3 .dot:nth-child(3) { grid-area: 3 / 3; }
+        .face-4 .dot:nth-child(1) { grid-area: 1 / 1; } 
+        .face-4 .dot:nth-child(2) { grid-area: 1 / 3; } 
+        .face-4 .dot:nth-child(3) { grid-area: 3 / 1; } 
+        .face-4 .dot:nth-child(4) { grid-area: 3 / 3; }
+        .face-5 .dot:nth-child(1) { grid-area: 1 / 1; } 
+        .face-5 .dot:nth-child(2) { grid-area: 1 / 3; } 
+        .face-5 .dot:nth-child(3) { grid-area: 2 / 2; } 
+        .face-5 .dot:nth-child(4) { grid-area: 3 / 1; } 
+        .face-5 .dot:nth-child(5) { grid-area: 3 / 3; }
+        .face-6 .dot:nth-child(1) { grid-area: 1 / 1; } 
+        .face-6 .dot:nth-child(2) { grid-area: 1 / 3; } 
+        .face-6 .dot:nth-child(3) { grid-area: 2 / 1; } 
+        .face-6 .dot:nth-child(4) { grid-area: 2 / 3; } 
+        .face-6 .dot:nth-child(5) { grid-area: 3 / 1; } 
+        .face-6 .dot:nth-child(6) { grid-area: 3 / 3; }
+
+        .locked .face { border-color: #e74c3c; background-color: #ffe6e6; box-shadow: 0 0 8px #e74c3c; }
+        .locked .dot { background-color: #c0392b; }
+        
+        .front { transform: rotateY(0deg) translateZ(21px); }
+        .back { transform: rotateY(180deg) translateZ(21px); }
+        .right { transform: rotateY(90deg) translateZ(21px); }
+        .left { transform: rotateY(-90deg) translateZ(21px); }
+        .top { transform: rotateX(90deg) translateZ(21px); }
+        .bottom { transform: rotateX(-90deg) translateZ(21px); }
+
+        .controls { margin-bottom: 10px; display: flex; justify-content: center; gap: 10px; }
+        button { color: white; border: none; padding: 8px 16px; font-size: 0.95rem; border-radius: 4px; cursor: pointer; transition: all 0.2s; }
+        #roll-btn { background: var(--accent-color); box-shadow: 0 3px 0 #d35400; }
+        #confirm-btn { background: var(--confirm-color); box-shadow: 0 3px 0 #1e8449; }
+        #quit-btn { background: #c0392b; box-shadow: 0 3px 0 #922b21; }
+        button:active { transform: translateY(3px); box-shadow: none !important; }
+        button:disabled { background: #7f8c8d !important; box-shadow: none !important; transform: none !important; opacity: 0.7; cursor: not-allowed; }
+
+        .score-board { display: flex; gap: 4px; justify-content: center; align-items: flex-start; width: 100%; max-width: 800px; }
+        .column { flex: 1; background: var(--secondary-bg); padding: 2px; border-radius: 6px; overflow-x: auto; }
+        
+        table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+        
+        th.player-header {
+            font-size: 0.7rem; color: #aaa; text-align: center; 
+            padding: 4px 0; border-bottom: 1px solid #555;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        th.player-header.is-me-header { color: #3498db; font-weight: bold; }
+        
+        td { padding: 4px 1px; border-bottom: 1px solid #444; vertical-align: middle; font-size: 0.8rem; }
+        
+        tr.score-row { height: 32px; transition: background 0.2s; cursor: pointer; }
+        tr.score-row.selected-row { background: rgba(39, 174, 96, 0.4); border: 1px solid #2ecc71; }
+        
+        .score-cell { 
+            font-family: 'Courier New', monospace; font-weight: bold; 
+            text-align: center; border-left: 1px solid #444; 
+            color: #ecf0f1;
+        }
+        .score-cell.my-cell { background: rgba(52, 152, 219, 0.05); } 
+        .preview-text { color: #f1c40f; font-style: italic; }
+        .filled { color: #2ecc71; pointer-events: none; }
+        
+        td.icon-col { width: 35px; text-align: center; }
+        
+        /* --- 優化後的計分板小骰子圖示 --- */
+        .mini-die { 
+            width: 16px; 
+            height: 16px; 
+            background: white; 
+            border-radius: 3px; 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            grid-template-rows: repeat(3, 1fr); 
+            padding: 1px; 
+            margin: 0 auto; 
+            gap: 0.5px;
+            box-sizing: border-box;
+        }
+        .mini-dot { background: black; border-radius: 50%; width: 100%; height: 100%; }
+
+        /* 點位定義 */
+        .m-d-1 :nth-child(1) { grid-area: 2 / 2; }
+        .m-d-2 :nth-child(1) { grid-area: 1 / 1; } .m-d-2 :nth-child(2) { grid-area: 3 / 3; }
+        .m-d-3 :nth-child(1) { grid-area: 1 / 1; } .m-d-3 :nth-child(2) { grid-area: 2 / 2; } .m-d-3 :nth-child(3) { grid-area: 3 / 3; }
+        .m-d-4 :nth-child(1) { grid-area: 1 / 1; } .m-d-4 :nth-child(2) { grid-area: 1 / 3; } .m-d-4 :nth-child(3) { grid-area: 3 / 1; } .m-d-4 :nth-child(4) { grid-area: 3 / 3; }
+        .m-d-5 :nth-child(1) { grid-area: 1 / 1; } .m-d-5 :nth-child(2) { grid-area: 1 / 3; } .m-d-5 :nth-child(3) { grid-area: 2 / 2; } .m-d-5 :nth-child(4) { grid-area: 3 / 1; } .m-d-5 :nth-child(5) { grid-area: 3 / 3; }
+        .m-d-6 :nth-child(1) { grid-area: 1 / 1; } .m-d-6 :nth-child(2) { grid-area: 1 / 3; } .m-d-6 :nth-child(3) { grid-area: 2 / 1; } .m-d-6 :nth-child(4) { grid-area: 2 / 3; } .m-d-6 :nth-child(5) { grid-area: 3 / 1; } .m-d-6 :nth-child(6) { grid-area: 3 / 3; }
+        
+        .symbol-text { font-size: 0.8rem; font-weight: 800; color: #bdc3c7; }
+        
+        #grand-total-display { font-size: 1.2rem; color: #f1c40f; margin-top: 10px; font-weight: bold; padding: 10px; background: #222; border-radius: 6px; }
+
+        @media (max-width: 360px) {
+            :root { --die-size: 38px; }
+            .front { transform: rotateY(0deg) translateZ(19px); } .back { transform: rotateY(180deg) translateZ(19px); }
+            .right { transform: rotateY(90deg) translateZ(19px); } .left { transform: rotateY(-90deg) translateZ(19px); }
+            .top { transform: rotateX(90deg) translateZ(19px); } .bottom { transform: rotateX(-90deg) translateZ(19px); }
+        }
+        
+        #turn-indicator {
+            background: #2980b9; color: white; padding: 5px 15px; border-radius: 20px; 
+            margin-bottom: 10px; font-size: 0.9rem; font-weight: bold;
+        }
+
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); z-index: 2000;
+            display: none; justify-content: center; align-items: center; color: white;
+        }
+
+        .wait-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-direction: column;
+            width: 80%;
+        }
+
+        #yahtzee-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 3000;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+        
+        .cheer-text {
+            font-size: 4rem;
+            font-weight: 900;
+            color: #f1c40f;
+            text-transform: uppercase;
+            animation: pulse-text 0.5s infinite alternate;
+            text-shadow: 0 0 20px #e67e22;
+        }
+        
+        .confetti {
+            position: absolute;
+            width: 10px; height: 10px;
+            background: #e74c3c;
+            animation: fall linear forwards;
+        }
+
+        @keyframes pulse-text {
+            from { transform: scale(1); }
+            to { transform: scale(1.2); }
+        }
+        
+        @keyframes fall {
+            to { transform: translateY(100vh) rotate(720deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="yahtzee-overlay">
+        <div class="cheer-text">YAHTZEE!</div>
+        <div style="color:white; margin-top:20px; font-size:1.5rem;">太神啦！50分！</div>
+    </div>
+
+    <div id="landing-view" class="view-section active-view">
+        <h1>🎲 3D Yahtzee Mobile</h1>
+        <div class="btn-group">
+            <button class="menu-btn primary" onclick="goToNickname()">連線對戰 (匹配模式)</button>
+            <button class="menu-btn" onclick="startSoloGame()">單機練習 (Solo)</button>
+        </div>
+    </div>
+
+    <div id="nickname-view" class="view-section">
+        <h1>輸入暱稱</h1>
+        <input type="text" id="nickname-input" placeholder="例如：骰子王阿明" maxlength="8">
+        <div class="btn-group">
+            <button class="menu-btn primary" onclick="enterLobby()">進入大廳</button>
+            <button class="menu-btn" onclick="showView('landing-view')">返回</button>
+        </div>
+    </div>
+
+    <div id="lobby-view" class="view-section">
+        <h1>遊戲大廳</h1>
+        <p>歡迎, <span id="lobby-nickname" style="color:var(--accent-color)"></span></p>
+        
+        <div style="width: 100%; margin: 10px 0;">
+            <div style="display: flex; gap: 10px; justify-content: center; align-items: center; margin-bottom: 10px;">
+                <label>人數:</label>
+                <select id="player-count-select" style="padding: 5px; border-radius: 4px;">
+                    <option value="2">2人</option>
+                    <option value="3">3人</option>
+                    <option value="4">4人</option>
+                </select>
+                <button class="join-btn" onclick="createRoom()">創立房間</button>
+            </div>
+            
+            <h3 style="text-align: left; margin-left: 10px;">現有房間:</h3>
+            <div id="room-list-container" class="room-list">
+                <div style="color: #666; font-size: 0.9rem;">正在載入房間...</div>
+            </div>
+        </div>
+
+        <button class="menu-btn" onclick="showView('landing-view')" style="margin-top: 20px; padding: 10px 20px;">離開</button>
+    </div>
+
+    <div id="waiting-view" class="view-section">
+        <h1>等待加入中...</h1>
+        <p>房間 ID: <span id="wait-room-id" style="color: #f1c40f; font-family: monospace;"></span></p>
+        <p>玩家: <span id="wait-player-count">1</span> / <span id="wait-max-players">2</span></p>
+        <div class="room-list" id="wait-player-list">
+        </div>
+        
+        <div class="wait-actions">
+            <button id="host-start-btn" class="menu-btn primary" style="display:none; padding:10px;" onclick="manualStartGame()">開始遊戲 (手動)</button>
+            <button class="menu-btn" style="background:#c0392b; border-color:#922b21; padding:10px;" onclick="leaveWaitingRoom()">離開房間</button>
+        </div>
+        <div style="margin-top: 10px; color: #aaa; font-size: 0.8rem;">人數到齊後通常會自動開始</div>
+    </div>
+
+    <div id="game-view" class="view-section">
+        <div class="players-bar" id="ingame-players-bar">
+            </div>
+        <div id="turn-indicator">等待開始...</div>
+        
+        <div class="dice-board" id="dice-container">
+            </div>
+
+        <div class="controls">
+            <button id="roll-btn" onclick="handleRollClick()">擲骰 (<span id="rolls-left">3</span>)</button>
+            <button id="confirm-btn" onclick="handleConfirmClick()" disabled>確認</button>
+            <button id="quit-btn" onclick="quitGame()">退出</button>
+        </div>
+
+        <div class="score-board">
+            <div class="column">
+                <table><tbody id="upper-section"></tbody></table>
+            </div>
+            <div class="column">
+                <table><tbody id="lower-section"></tbody></table>
+            </div>
+        </div>
+
+        <div id="grand-total-display">總分: <span id="grand-total">0</span></div>
+    </div>
+
+    <div id="loading-overlay">處理中...</div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, update, remove, onDisconnect, get, child } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyC7PZLTTNf17cfp9gCHudWiWX8SYPSCdDI",
+            authDomain: "onlineeasyraygame.firebaseapp.com",
+            databaseURL: "https://onlineeasyraygame-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "onlineeasyraygame",
+            storageBucket: "onlineeasyraygame.firebasestorage.app",
+            messagingSenderId: "622138442346",
+            appId: "1:622138442346:web:9e29ef572d334f83428013",
+            measurementId: "G-ZT703DH0ZS"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let myNickname = "";
+        let myPlayerId = "";
+        let currentRoomId = "";
+        let currentRoomData = null;
+        let isMyTurn = false;
+        let isSoloMode = false;
+        
+        let localSelection = null; 
+
+        let soloState = {
+            dice: [1, 1, 1, 1, 1],
+            locked: [false, false, false, false, false],
+            rollsLeft: 3,
+            isRolling: false,
+            board: {},
+            score: 0
+        };
+
+        window.goToNickname = () => {
+            isSoloMode = false;
+            showView('nickname-view');
+        };
+        
+        window.enterLobby = () => {
+            const input = document.getElementById('nickname-input');
+            if(!input.value.trim()) { alert("請輸入暱稱"); return; }
+            myNickname = input.value.trim();
+            myPlayerId = 'p_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+            
+            document.getElementById('lobby-nickname').innerText = myNickname;
+            showView('lobby-view');
+            listenToRooms();
+        };
+
+        window.startSoloGame = () => {
+            isSoloMode = true;
+            myNickname = "練習者";
+            myPlayerId = "solo_player";
+            
+            soloState = {
+                dice: [1, 1, 1, 1, 1],
+                locked: [false, false, false, false, false],
+                rollsLeft: 3,
+                isRolling: false,
+                board: {},
+                score: 0
+            };
+            localSelection = null;
+
+            initGameUI();
+            showView('game-view');
+            
+            document.getElementById('turn-indicator').innerText = "單機練習模式";
+            document.getElementById('turn-indicator').style.background = "#8e44ad";
+            document.getElementById('ingame-players-bar').innerHTML = `<div class="player-badge active-turn is-me">${myNickname}</div>`;
+            document.getElementById('rolls-left').innerText = "3";
+            document.getElementById('roll-btn').disabled = false;
+            document.getElementById('confirm-btn').disabled = true;
+            
+            updateDiceVisuals(soloState.dice, false, soloState.locked);
+            
+            const soloPlayerList = [{
+                id: myPlayerId,
+                nickname: myNickname,
+                score: soloState.score,
+                board: soloState.board,
+                isMe: true
+            }];
+            renderScoreTables(soloPlayerList);
+        };
+
+        window.createRoom = async () => {
+            const playerCount = parseInt(document.getElementById('player-count-select').value);
+            const roomsRef = ref(db, 'rooms');
+            const newRoomRef = push(roomsRef);
+            const roomId = newRoomRef.key;
+
+            const initialData = {
+                id: roomId,
+                host: myNickname,
+                status: "waiting",
+                maxPlayers: playerCount,
+                currentTurnIndex: 0,
+                gameState: {
+                    dice: [1,1,1,1,1],
+                    locked: [false,false,false,false,false],
+                    rollsLeft: 3,
+                    isRolling: false,
+                    lastActionTimestamp: Date.now()
+                },
+                players: {
+                    [myPlayerId]: {
+                        nickname: myNickname,
+                        score: 0,
+                        board: {},
+                        index: 0
+                    }
+                }
+            };
+
+            await set(newRoomRef, initialData);
+            joinRoomLogic(roomId);
+        };
+
+        window.quitGame = () => {
+            if(confirm("確定要退出遊戲嗎？")) {
+                location.reload();
+            }
+        };
+
+        window.leaveWaitingRoom = async () => {
+            if(!currentRoomId) return;
+            if(confirm("確定要離開房間嗎？")) {
+                const pRef = ref(db, `rooms/${currentRoomId}/players/${myPlayerId}`);
+                await remove(pRef);
+                currentRoomId = "";
+                currentRoomData = null;
+                showView('lobby-view');
+            }
+        };
+        
+        window.manualStartGame = async () => {
+             if(currentRoomId && currentRoomData) {
+                 const currentPlayers = currentRoomData.players || {};
+                 const actualCount = Object.keys(currentPlayers).length;
+                 
+                 await update(ref(db, `rooms/${currentRoomId}`), { 
+                     status: 'playing',
+                     maxPlayers: actualCount 
+                 });
+             }
+        };
+
+        window.showView = (id) => {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active-view'));
+            const target = document.getElementById(id);
+            if(target) target.classList.add('active-view');
+        }
+
+        function listenToRooms() {
+            const roomsRef = ref(db, 'rooms');
+            onValue(roomsRef, (snapshot) => {
+                const list = document.getElementById('room-list-container');
+                list.innerHTML = "";
+                const data = snapshot.val();
+                
+                if(!data) {
+                    list.innerHTML = "<div style='padding:10px; color:#888;'>目前沒有房間，快創一個！</div>";
+                    return;
+                }
+
+                Object.values(data).forEach(room => {
+                    if(room.status === 'waiting') {
+                        const currentCount = room.players ? Object.keys(room.players).length : 0;
+                        const div = document.createElement('div');
+                        div.className = 'room-item';
+                        div.innerHTML = `
+                            <div>
+                                <div style="font-weight:bold">${room.host} 的房間</div>
+                                <div class="room-status">${currentCount}/${room.maxPlayers} 人</div>
+                            </div>
+                            <button class="join-btn" onclick="window.tryJoin('${room.id}')">加入</button>
+                        `;
+                        list.appendChild(div);
+                    }
+                });
+            });
+        }
+
+        window.tryJoin = async (roomId) => {
+            const roomRef = ref(db, `rooms/${roomId}`);
+            const snapshot = await get(roomRef);
+            if(!snapshot.exists()) { alert("房間已不存在"); return; }
+            
+            const room = snapshot.val();
+            if(room.status !== 'waiting') { alert("遊戲已開始"); return; }
+            
+            const players = room.players || {};
+            const pKeys = Object.keys(players);
+            if(pKeys.length >= room.maxPlayers) { alert("房間已滿"); return; }
+
+            const newIndex = pKeys.length;
+            const updates = {};
+            updates[`rooms/${roomId}/players/${myPlayerId}`] = {
+                nickname: myNickname,
+                score: 0,
+                board: {},
+                index: newIndex
+            };
+
+            await update(ref(db), updates);
+            joinRoomLogic(roomId);
+        };
+
+        function joinRoomLogic(roomId) {
+            currentRoomId = roomId;
+            const roomRef = ref(db, `rooms/${roomId}`);
+            
+            onDisconnect(ref(db, `rooms/${roomId}/players/${myPlayerId}`)).remove();
+
+            onValue(roomRef, (snapshot) => {
+                const data = snapshot.val();
+                if(!data) {
+                    if(document.getElementById('waiting-view').classList.contains('active-view') || 
+                       document.getElementById('game-view').classList.contains('active-view')) {
+                         alert("房間已被房主解散或不存在");
+                         showView('lobby-view');
+                    }
+                    return;
+                }
+                
+                currentRoomData = data;
+                const players = data.players || {};
+                
+                if(!players[myPlayerId] && !document.getElementById('lobby-view').classList.contains('active-view')) {
+                    showView('lobby-view');
+                    return;
+                }
+
+                const playerList = Object.values(players).sort((a,b) => a.index - b.index);
+                
+                if (data.status === 'waiting') {
+                    if (!document.getElementById('waiting-view').classList.contains('active-view')) {
+                        showView('waiting-view');
+                    }
+                    
+                    document.getElementById('wait-room-id').innerText = roomId.slice(-4);
+                    document.getElementById('wait-player-count').innerText = playerList.length;
+                    document.getElementById('wait-max-players').innerText = data.maxPlayers;
+                    
+                    const waitList = document.getElementById('wait-player-list');
+                    waitList.innerHTML = playerList.map(p => 
+                        `<div class="room-item">${p.nickname} ${p.nickname===myNickname?'(你)':''} ${p.nickname===data.host?'👑':''}</div>`
+                    ).join('');
+
+                    const startBtn = document.getElementById('host-start-btn');
+                    if(myNickname === data.host) {
+                        startBtn.style.display = 'block';
+                        if (playerList.length >= data.maxPlayers) {
+                             update(ref(db, `rooms/${roomId}`), { status: 'playing' });
+                        }
+                    } else {
+                        startBtn.style.display = 'none';
+                    }
+
+                } else if (data.status === 'playing') {
+                    const gameView = document.getElementById('game-view');
+                    if(!gameView.classList.contains('active-view')) {
+                        initGameUI(); 
+                        showView('game-view');
+                    }
+                    syncGameUI(data, playerList);
+                }
+            });
+        }
+
+        function initGameUI() {
+            const container = document.getElementById('dice-container');
+            container.innerHTML = '';
+            for(let i=0; i<5; i++) {
+                container.innerHTML += `
+                <div class="cube-wrapper" onclick="window.toggleLock(${i})">
+                    <div class="cube" id="die-${i}">
+                        <div class="face front face-1"><div class="dot"></div></div>
+                        <div class="face back face-6"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                        <div class="face right face-3"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                        <div class="face left face-4"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                        <div class="face top face-5"><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                        <div class="face bottom face-2"><div class="dot"></div><div class="dot"></div></div>
+                    </div>
+                </div>`;
+            }
+        }
+
+        function syncGameUI(data, playerList) {
+            if(isSoloMode) return;
+
+            const gameState = data.gameState;
+            const safeIndex = data.currentTurnIndex % playerList.length;
+            const currentPlayer = playerList[safeIndex];
+            
+            if(!currentPlayer) return;
+
+            isMyTurn = (currentPlayer.nickname === myNickname);
+
+            const indicator = document.getElementById('turn-indicator');
+            indicator.style.background = isMyTurn ? '#27ae60' : '#2980b9';
+            indicator.innerText = isMyTurn ? "輪到你了！" : `等待 ${currentPlayer.nickname} 行動...`;
+
+            const pBar = document.getElementById('ingame-players-bar');
+            pBar.innerHTML = playerList.map(p => `
+                <div class="player-badge ${p.nickname===currentPlayer.nickname?'active-turn':''} ${p.nickname===myNickname?'is-me':''}">
+                    ${p.nickname}: ${p.score}
+                </div>
+            `).join('');
+
+            updateDiceVisuals(gameState.dice, gameState.isRolling, gameState.locked);
+
+            document.getElementById('rolls-left').innerText = gameState.rollsLeft;
+            const rollBtn = document.getElementById('roll-btn');
+            const confirmBtn = document.getElementById('confirm-btn');
+
+            if(isMyTurn) {
+                rollBtn.disabled = (gameState.rollsLeft <= 0 || gameState.isRolling);
+                if(!localSelection) confirmBtn.disabled = true;
+            } else {
+                rollBtn.disabled = true;
+                confirmBtn.disabled = true;
+                clearLocalSelection();
+            }
+
+            const processedList = playerList.map(p => ({
+                 ...p, 
+                 isMe: (p.nickname === myNickname) 
+            }));
+
+            renderScoreTables(processedList);
+        }
+
+        function renderScoreTables(players) {
+            const upper = document.getElementById('upper-section');
+            const lower = document.getElementById('lower-section');
+            
+            let headerHTML = `<tr><th class="icon-col"></th>`;
+            players.forEach(p => {
+                headerHTML += `<th class="player-header ${p.isMe?'is-me-header':''}">${p.nickname}</th>`;
+            });
+            headerHTML += `</tr>`;
+
+            // --- 優化後的 Upper Section ---
+            let upperHTML = headerHTML;
+            for(let i=1; i<=6; i++) {
+                const rowKey = `s${i}`;
+                upperHTML += `<tr id="row-${i}" class="score-row" onclick="window.handleScoreSelect('upper', ${i})">`;
+                
+                // 動態生成正確數量的點
+                let dots = '';
+                for(let d=0; d<i; d++) { dots += '<div class="mini-dot"></div>'; }
+                
+                upperHTML += `<td class="icon-col"><div class="mini-die m-d-${i}">${dots}</div></td>`;
+                
+                players.forEach(p => {
+                    const val = (p.board && p.board[rowKey] !== undefined) ? p.board[rowKey] : '-';
+                    const idAttr = p.isMe ? `id="s${i}"` : ''; 
+                    const cellClass = p.isMe ? 'score-cell my-cell' : 'score-cell';
+                    const filledClass = (val !== '-') ? 'filled' : '';
+                    upperHTML += `<td ${idAttr} class="${cellClass} ${filledClass}">${val}</td>`;
+                });
+                upperHTML += `</tr>`;
+            }
+            
+            upperHTML += `<tr style="background:#333; height:25px;"><td class="icon-col" style="color:#bbb; font-size:0.7rem">獎勵</td>`;
+            players.forEach(p => {
+                let uSum = 0;
+                for(let k=1; k<=6; k++) if(p.board && p.board[`s${k}`] !== undefined) uSum += p.board[`s${k}`];
+                const bonus = uSum >= 63 ? 35 : 0;
+                upperHTML += `<td class="score-cell" style="color:${bonus>0?'#2ecc71':'#888'}">${bonus}</td>`;
+            });
+            upperHTML += `</tr>`;
+            
+            upper.innerHTML = upperHTML;
+
+            const lowerCats = [
+                {k:'3ok', n:'3X'}, {k:'4ok', n:'4X'}, {k:'full', n:'🏠'},
+                {k:'sm-str', n:'小順'}, {k:'lg-str', n:'大順'}, 
+                {k:'yahtzee', n:'Y!'}, {k:'chance', n:'?'}
+            ];
+            
+            let lowerHTML = headerHTML;
+            lowerCats.forEach(c => {
+                 const rowKey = `s-${c.k}`;
+                 lowerHTML += `<tr id="row-${c.k}" class="score-row" onclick="window.handleScoreSelect('lower', '${c.k}')">`;
+                 lowerHTML += `<td class="symbol-text icon-col">${c.n}</td>`;
+                 players.forEach(p => {
+                    const val = (p.board && p.board[rowKey] !== undefined) ? p.board[rowKey] : '-';
+                    const idAttr = p.isMe ? `id="s-${c.k}"` : '';
+                    const cellClass = p.isMe ? 'score-cell my-cell' : 'score-cell';
+                    const filledClass = (val !== '-') ? 'filled' : '';
+                    lowerHTML += `<td ${idAttr} class="${cellClass} ${filledClass}">${val}</td>`;
+                 });
+                 lowerHTML += `</tr>`;
+            });
+            
+            lower.innerHTML = lowerHTML;
+
+            const me = players.find(p => p.isMe);
+            if(me) {
+                 let uSum = 0;
+                 for(let k=1; k<=6; k++) if(me.board && me.board[`s${k}`] !== undefined) uSum += me.board[`s${k}`];
+                 const bonus = uSum >= 63 ? 35 : 0;
+                 let lSum = 0;
+                 lowerCats.forEach(c => { if(me.board && me.board[`s-${c.k}`] !== undefined) lSum += me.board[`s-${c.k}`]; });
+                 document.getElementById('grand-total').innerText = uSum + bonus + lSum;
+            }
+            
+            if(localSelection) {
+                const cell = document.getElementById(localSelection.cellId);
+                if(cell) {
+                    cell.innerText = localSelection.score;
+                    cell.classList.add('preview-text');
+                    const row = cell.closest('tr');
+                    if(row) row.classList.add('selected-row');
+                }
+            }
+        }
+
+        function updateDiceVisuals(values, isRolling, lockedStatus) {
+            for(let i=0; i<5; i++) {
+                const dieElem = document.getElementById(`die-${i}`);
+                const wrapper = document.querySelectorAll('.cube-wrapper')[i];
+                
+                if(lockedStatus[i]) wrapper.classList.add('locked');
+                else wrapper.classList.remove('locked');
+
+                if(isRolling && !lockedStatus[i]) {
+                    const rx = Math.random() * 720; 
+                    const ry = Math.random() * 720;
+                    dieElem.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
+                } else {
+                    setDieFace(dieElem, values[i]);
+                }
+            }
+        }
+
+        function setDieFace(elem, val) {
+            let x=0, y=0;
+            switch(val) {
+                case 1: x=0; y=0; break;
+                case 2: x=90; y=0; break; 
+                case 3: x=0; y=-90; break; 
+                case 4: x=0; y=90; break; 
+                case 5: x=-90; y=0; break; 
+                case 6: x=0; y=180; break; 
+            }
+            elem.style.transform = `rotateX(${x}deg) rotateY(${y}deg)`;
+        }
+
+        function showYahtzeeAnim() {
+            const overlay = document.getElementById('yahtzee-overlay');
+            overlay.style.display = 'flex';
+            for(let i=0; i<30; i++) {
+                const conf = document.createElement('div');
+                conf.className = 'confetti';
+                conf.style.left = Math.random() * 100 + '%';
+                conf.style.top = -10 + 'px';
+                conf.style.backgroundColor = `hsl(${Math.random()*360}, 100%, 50%)`;
+                conf.style.animationDuration = (Math.random()*2 + 2) + 's';
+                conf.style.animationDelay = Math.random() * 1 + 's';
+                overlay.appendChild(conf);
+            }
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                overlay.innerHTML = '<div class="cheer-text">YAHTZEE!</div><div style="color:white; margin-top:20px; font-size:1.5rem;">太神啦！50分！</div>';
+            }, 5000);
+        }
+
+        window.handleRollClick = () => {
+            if(isSoloMode) {
+                if(soloState.rollsLeft <= 0 || soloState.isRolling) return;
+                soloState.isRolling = true;
+                updateDiceVisuals(soloState.dice, true, soloState.locked); 
+                setTimeout(() => {
+                    const newDice = [...soloState.dice];
+                    for(let i=0; i<5; i++) {
+                        if(!soloState.locked[i]) {
+                            newDice[i] = Math.floor(Math.random() * 6) + 1;
+                        }
+                    }
+                    soloState.dice = newDice;
+                    soloState.rollsLeft -= 1;
+                    soloState.isRolling = false;
+                    updateDiceVisuals(soloState.dice, false, soloState.locked);
+                    document.getElementById('rolls-left').innerText = soloState.rollsLeft;
+                    document.getElementById('roll-btn').disabled = (soloState.rollsLeft <= 0);
+                    clearLocalSelection();
+                }, 600);
+                return;
+            }
+
+            if(!isMyTurn) return;
+            const state = currentRoomData.gameState;
+            if(state.rollsLeft <= 0 || state.isRolling) return;
+            update(ref(db, `rooms/${currentRoomId}/gameState`), { isRolling: true });
+            const newDice = [...state.dice];
+            for(let i=0; i<5; i++) {
+                if(!state.locked[i]) {
+                    newDice[i] = Math.floor(Math.random() * 6) + 1;
+                }
+            }
+            setTimeout(() => {
+                update(ref(db, `rooms/${currentRoomId}/gameState`), {
+                    dice: newDice,
+                    rollsLeft: state.rollsLeft - 1,
+                    isRolling: false
+                });
+            }, 800);
+            clearLocalSelection();
+        };
+
+        window.toggleLock = (index) => {
+            if(isSoloMode) {
+                 if(soloState.rollsLeft === 3) return; 
+                 if(soloState.isRolling) return;
+                 soloState.locked[index] = !soloState.locked[index];
+                 updateDiceVisuals(soloState.dice, false, soloState.locked);
+                 return;
+            }
+            if(!isMyTurn) return;
+            const state = currentRoomData.gameState;
+            if(state.rollsLeft === 3) return;
+            if(state.isRolling) return;
+            const newLocked = [...state.locked];
+            newLocked[index] = !newLocked[index];
+            update(ref(db, `rooms/${currentRoomId}/gameState`), { locked: newLocked });
+        };
+
+        window.handleScoreSelect = (type, key) => {
+            let state;
+            let myBoard;
+            if (isSoloMode) {
+                state = soloState;
+                myBoard = soloState.board;
+            } else {
+                if(!isMyTurn) return;
+                state = currentRoomData.gameState;
+                if(!currentRoomData.players[myPlayerId]) return;
+                myBoard = currentRoomData.players[myPlayerId].board || {};
+            }
+            if(state.rollsLeft === 3 && state.dice[0] === 1 && !localSelection) return;
+            if(state.isRolling) return;
+            let cellId = (type==='upper') ? `s${key}` : `s-${key}`;
+            if(myBoard[cellId] !== undefined) return;
+            let score = calculateScore(type, key, state.dice);
+            clearLocalSelection();
+            const cell = document.getElementById(cellId);
+            if(!cell) return;
+            const row = cell.closest('tr');
+            cell.innerText = score;
+            cell.classList.add('preview-text');
+            row.classList.add('selected-row');
+            localSelection = { type, key, score, cellId };
+            document.getElementById('confirm-btn').disabled = false;
+        };
+
+        window.handleConfirmClick = async () => {
+            if(!localSelection) return;
+            const { cellId, score, key } = localSelection;
+            if(key === 'yahtzee' && score === 50) {
+                showYahtzeeAnim();
+            }
+            if(isSoloMode) {
+                soloState.board[cellId] = score;
+                soloState.score += score;
+                soloState.dice = [1,1,1,1,1];
+                soloState.locked = [false,false,false,false,false];
+                soloState.rollsLeft = 3;
+                const soloPlayerList = [{
+                    id: myPlayerId,
+                    nickname: myNickname,
+                    score: soloState.score,
+                    board: soloState.board,
+                    isMe: true
+                }];
+                renderScoreTables(soloPlayerList);
+                updateDiceVisuals(soloState.dice, false, soloState.locked);
+                document.getElementById('rolls-left').innerText = "3";
+                document.getElementById('roll-btn').disabled = false;
+                localSelection = null;
+                document.getElementById('confirm-btn').disabled = true;
+                if(Object.keys(soloState.board).length >= 13) {
+                    setTimeout(() => alert(`遊戲結束！總分: ${document.getElementById('grand-total').innerText}`), 500);
+                }
+                return;
+            }
+            if(!isMyTurn) return;
+            const roomId = currentRoomId;
+            const currentScore = currentRoomData.players[myPlayerId].score || 0;
+            const updates = {};
+            updates[`rooms/${roomId}/players/${myPlayerId}/board/${cellId}`] = score;
+            updates[`rooms/${roomId}/players/${myPlayerId}/score`] = currentScore + score;
+            const players = currentRoomData.players || {};
+            const playerIds = Object.keys(players);
+            const totalPlayers = playerIds.length;
+            const nextTurnIndex = (currentRoomData.currentTurnIndex + 1) % totalPlayers;
+            updates[`rooms/${roomId}/gameState`] = {
+                dice: [1,1,1,1,1],
+                locked: [false,false,false,false,false],
+                rollsLeft: 3,
+                isRolling: false,
+                lastActionTimestamp: Date.now()
+            };
+            updates[`rooms/${roomId}/currentTurnIndex`] = nextTurnIndex;
+            await update(ref(db), updates);
+            localSelection = null;
+            document.getElementById('confirm-btn').disabled = true;
+        };
+
+        function clearLocalSelection() {
+            if(localSelection) {
+                const cell = document.getElementById(localSelection.cellId);
+                if(cell) {
+                    const row = cell.closest('tr');
+                    cell.innerText = '-';
+                    cell.classList.remove('preview-text');
+                    row.classList.remove('selected-row');
+                }
+            }
+            localSelection = null;
+            document.getElementById('confirm-btn').disabled = true;
+        }
+
+        function calculateScore(type, key, dice) {
+            if (type === 'upper') {
+                return dice.filter(d => d === key).length * key;
+            } else {
+                const counts = {};
+                dice.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
+                const countsArr = Object.values(counts);
+                const uniqueSorted = [...new Set(dice)].sort((a,b)=>a-b);
+                const sum = dice.reduce((a,b)=>a+b, 0);
+                switch(key) {
+                    case '3ok': return countsArr.some(c => c >= 3) ? sum : 0;
+                    case '4ok': return countsArr.some(c => c >= 4) ? sum : 0;
+                    case 'full': return (countsArr.includes(3) && countsArr.includes(2)) || countsArr.includes(5) ? 25 : 0;
+                    case 'sm-str': return isSequential(uniqueSorted, 4) ? 30 : 0;
+                    case 'lg-str': return isSequential(uniqueSorted, 5) ? 40 : 0;
+                    case 'yahtzee': return countsArr.includes(5) ? 50 : 0;
+                    case 'chance': return sum;
+                    default: return 0;
+                }
+            }
+        }
+
+        function isSequential(arr, n) {
+            let maxSeq = 1;
+            let currentSeq = 1;
+            for(let i=0; i<arr.length-1; i++) {
+                if (arr[i+1] === arr[i]+1) currentSeq++;
+                else currentSeq = 1;
+                if(currentSeq > maxSeq) maxSeq = currentSeq;
+            }
+            return maxSeq >= n;
+        }
+    </script>
+</body>
+</html>
