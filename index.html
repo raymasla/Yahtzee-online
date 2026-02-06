@@ -543,6 +543,7 @@
         
         // --- Admin Mode Global Variables ---
         let isAdmin = false;
+        let isWangTester = false; // 新增：汪測試員標記
         let keyBuffer = "";
         const SECRET_CODE = "991020";
 
@@ -555,21 +556,17 @@
             score: 0
         };
 
-        // --- Admin Input Listener ---
+        // --- Admin Input Listener (隱藏按鍵觸發) ---
         window.addEventListener('keydown', (e) => {
-            // 只有在 landing view 才偵測
             if(document.getElementById('landing-view').classList.contains('active-view')) {
-                // e.key 會回傳 "9", "0", "1" 等，無論是主鍵盤還是數字鍵區
                 if(e.key >= "0" && e.key <= "9") {
                     keyBuffer += e.key;
-                    if(keyBuffer.length > 20) keyBuffer = keyBuffer.slice(-20); // 限制 buffer 長度
+                    if(keyBuffer.length > 20) keyBuffer = keyBuffer.slice(-20);
                     
                     if(keyBuffer.endsWith(SECRET_CODE)) {
                         enableAdminMode();
-                        keyBuffer = ""; // Reset
+                        keyBuffer = ""; 
                     }
-                } else {
-                    // 如果按了非數字鍵，可能重置 buffer，看需求，這裡暫不清空以容錯
                 }
             }
         });
@@ -577,15 +574,11 @@
         function enableAdminMode() {
             if(isAdmin) return;
             isAdmin = true;
-            alert("⚠️ 系統提示：管理員模式 (God Mode) 已啟動 ⚠️");
-            
-            // 顯示首頁的管理按鈕
             document.getElementById('admin-entry-btn').classList.add('visible');
         }
 
         window.showAdminRoomManager = () => {
             showView('admin-room-view');
-            // 載入房間列表供管理
             const roomsRef = ref(db, DB_ROOT);
             onValue(roomsRef, (snapshot) => {
                 const list = document.getElementById('admin-room-list');
@@ -611,7 +604,7 @@
                     `;
                     list.appendChild(div);
                 });
-            }); // 這裡不使用 off，保持實時更新，因為是 SPA
+            }); 
         };
 
         window.adminDeleteRoom = async (roomId) => {
@@ -622,13 +615,35 @@
 
         window.goToNickname = () => {
             isSoloMode = false;
-            showView('nickname-view');
+            // 新增：檢測是否為汪測試員，若是則跳過輸入
+            if (isWangTester) {
+                myNickname = "汪(測試員)";
+                myPlayerId = 'p_' + Date.now() + '_' + Math.floor(Math.random()*1000);
+                document.getElementById('lobby-nickname').innerText = myNickname;
+                showView('lobby-view');
+                listenToRooms();
+            } else {
+                showView('nickname-view');
+            }
         };
         
         window.enterLobby = () => {
             const input = document.getElementById('nickname-input');
-            if(!input.value.trim()) { alert("請輸入暱稱"); return; }
-            myNickname = input.value.trim();
+            const val = input.value.trim();
+            if(!val) { alert("請輸入暱稱"); return; }
+            
+            // 新增：檢測 991025 代碼
+            if (val === "991025") {
+                isWangTester = true;
+                isAdmin = true; // 同時賦予管理員權限
+                document.getElementById('admin-entry-btn').classList.add('visible');
+                alert("歡迎汪測試員");
+                showView('landing-view'); // 回到首頁
+                input.value = ""; // 清空輸入
+                return;
+            }
+
+            myNickname = val;
             myPlayerId = 'p_' + Date.now() + '_' + Math.floor(Math.random()*1000);
             
             document.getElementById('lobby-nickname').innerText = myNickname;
@@ -654,7 +669,6 @@
             initGameUI();
             showView('game-view');
             
-            // Check Admin
             if(isAdmin) document.getElementById('admin-panel').classList.add('active');
             
             document.getElementById('turn-indicator').innerText = "單機練習模式";
@@ -761,7 +775,6 @@
         function listenToRooms() {
             const roomsRef = ref(db, DB_ROOT);
             onValue(roomsRef, (snapshot) => {
-                // 如果目前在 admin view，不要覆蓋那邊的列表
                 if(document.getElementById('admin-room-view').classList.contains('active-view')) return;
 
                 const list = document.getElementById('room-list-container');
@@ -880,7 +893,6 @@
                     if(!gameView.classList.contains('active-view')) {
                         initGameUI(); 
                         showView('game-view');
-                        // Check Admin
                         if(isAdmin) document.getElementById('admin-panel').classList.add('active');
                     }
                     syncGameUI(data, playerList);
@@ -936,7 +948,6 @@
             const confirmBtn = document.getElementById('confirm-btn');
 
             if(isMyTurn) {
-                // 如果是管理員且開啟無限模式，忽略 rollsLeft
                 const isInfinite = isAdmin && document.getElementById('admin-infinite-rolls').checked;
                 rollBtn.disabled = (!isInfinite && gameState.rollsLeft <= 0) || gameState.isRolling;
                 
@@ -1096,7 +1107,6 @@
             const titleEl = document.getElementById('overlay-title');
             const subEl = document.getElementById('overlay-sub');
             
-            // 清除舊有的按鈕（如果有的話）
             const oldBtn = document.getElementById('overlay-exit-btn');
             if(oldBtn) oldBtn.remove();
 
@@ -1108,7 +1118,6 @@
             
             overlay.classList.add('active');
 
-            // 撒花效果
             for(let i=0; i<50; i++) {
                 const conf = document.createElement('div');
                 conf.className = 'confetti';
@@ -1120,20 +1129,18 @@
                 overlay.appendChild(conf);
             }
 
-            // 如果 duration 為 0，表示是遊戲結束，新增「回到首頁」按鈕
             if(duration === 0) {
                 const exitBtn = document.createElement('button');
                 exitBtn.id = 'overlay-exit-btn';
                 exitBtn.className = 'menu-btn primary';
                 exitBtn.style.marginTop = '30px';
-                exitBtn.style.pointerEvents = 'auto'; // 確保可以點擊
+                exitBtn.style.pointerEvents = 'auto'; 
                 exitBtn.innerText = '回到首頁';
                 exitBtn.onclick = () => {
-                    location.reload(); // 重新整理頁面回到首頁
+                    location.reload(); 
                 };
                 overlay.appendChild(exitBtn);
             } else if(duration) {
-                // 一般事件（如 Yahtzee），設定自動消失
                 setTimeout(() => {
                     overlay.classList.remove('active');
                     overlay.classList.remove('rainbow-bg');
@@ -1181,9 +1188,7 @@
             }
         }
 
-        // --- Modified Roll Logic for Admin ---
         window.handleRollClick = () => {
-            // Helper function to get roll result
             const getRollValue = (index) => {
                 if(isAdmin) {
                     const input = document.getElementById(`admin-d${index}`);
@@ -1206,12 +1211,12 @@
                     const newDice = [...soloState.dice];
                     for(let i=0; i<5; i++) {
                         if(!soloState.locked[i]) {
-                            newDice[i] = getRollValue(i); // Use admin or random
+                            newDice[i] = getRollValue(i); 
                         }
                     }
                     soloState.dice = newDice;
                     
-                    if(!isInfinite) soloState.rollsLeft -= 1; // Infinite check
+                    if(!isInfinite) soloState.rollsLeft -= 1; 
                     
                     soloState.isRolling = false;
                     updateDiceVisuals(soloState.dice, false, soloState.locked);
@@ -1232,7 +1237,7 @@
             const newDice = [...state.dice];
             for(let i=0; i<5; i++) {
                 if(!state.locked[i]) {
-                    newDice[i] = getRollValue(i); // Use admin or random
+                    newDice[i] = getRollValue(i); 
                 }
             }
             
@@ -1265,7 +1270,7 @@
             update(ref(db, `${DB_ROOT}/${currentRoomId}/gameState`), { locked: newLocked });
         };
 
-        window.handleScoreSelect = (type, key) => {
+        window.handleScoreSelect = (type, key, force = false) => {
             const isInfinite = isAdmin && document.getElementById('admin-infinite-rolls').checked;
             
             let state;
@@ -1280,8 +1285,7 @@
                 myBoard = currentRoomData.players[myPlayerId].board || {};
             }
             
-            // Allow selection anytime in Infinite mode, otherwise enforce rules
-            if(!isInfinite && state.rollsLeft === 3 && state.dice[0] === 1 && !localSelection) return;
+            if(!isInfinite && state.rollsLeft === 3 && state.dice[0] === 1 && !localSelection && !force) return;
             if(state.isRolling) return;
             
             let cellId = (type==='upper') ? `s${key}` : `s-${key}`;
@@ -1303,11 +1307,32 @@
             if(!localSelection) return;
             const { cellId, score, key } = localSelection;
             
-            let isYahtzeeEvent = (key === 'yahtzee' && score === 50);
+            // --- NEW: Yahtzee Bonus / Animation Logic ---
+            let isPrimaryYahtzee = (key === 'yahtzee' && score === 50);
+            
+            // 檢查是否符合 Bonus Yahtzee 條件
+            // 條件：骰出 Yahtzee，且 Y! 格子已經有 >= 50 分
+            const dice = isSoloMode ? soloState.dice : currentRoomData.gameState.dice;
+            const isYahtzeeRoll = dice.every(d => d === dice[0]);
+            
+            let currentYahtzeeScore = 0;
+            if(isSoloMode) currentYahtzeeScore = soloState.board['s-yahtzee'] || 0;
+            else if(currentRoomData.players[myPlayerId].board) currentYahtzeeScore = currentRoomData.players[myPlayerId].board['s-yahtzee'] || 0;
+            
+            let bonusToAdd = 0;
+
+            // 觸發條件：是 Yahtzee 骰面 且 Yahtzee 格子已滿 (>=50)
+            if (isYahtzeeRoll && currentYahtzeeScore >= 50) {
+                bonusToAdd = 100;
+            }
 
             if(isSoloMode) {
-                if(isYahtzeeEvent) {
+                if(isPrimaryYahtzee) {
                     triggerGlobalYahtzee(myNickname);
+                }
+                if(bonusToAdd > 0) {
+                    triggerGlobalYahtzee(myNickname + " (+100!)");
+                    soloState.board['s-yahtzee'] = currentYahtzeeScore + bonusToAdd;
                 }
                 
                 soloState.board[cellId] = score;
@@ -1331,7 +1356,6 @@
                 localSelection = null;
                 document.getElementById('confirm-btn').disabled = true;
                 
-                // Clear admin inputs for convenience
                 if(isAdmin) {
                      document.querySelectorAll('.admin-die-input').forEach(el => el.value = "");
                 }
@@ -1340,23 +1364,41 @@
                 return;
             }
 
+            // Multiplayer Logic
             if(!isMyTurn) return;
             
             const roomId = currentRoomId;
             const myData = currentRoomData.players[myPlayerId];
             
+            const updates = {};
+            
+            // 1. 更新選定格子的分數
+            updates[`${DB_ROOT}/${roomId}/players/${myPlayerId}/board/${cellId}`] = score;
+            
+            // 2. 如果觸發 Bonus，額外更新 Yahtzee 格子
+            if(bonusToAdd > 0) {
+                 updates[`${DB_ROOT}/${roomId}/players/${myPlayerId}/board/s-yahtzee`] = currentYahtzeeScore + bonusToAdd;
+            }
+
+            // 3. 計算並更新總分 (需包含剛剛可能加的 Bonus)
+            // 由於 calculateRealScore 是讀取 Board，我們需要模擬新的 Board 狀態
             const newBoard = { ...(myData.board || {}), [cellId]: score };
+            if(bonusToAdd > 0) newBoard['s-yahtzee'] = currentYahtzeeScore + bonusToAdd;
             
             const newTotalScore = calculateRealScore(newBoard);
-
-            const updates = {};
-            updates[`${DB_ROOT}/${roomId}/players/${myPlayerId}/board/${cellId}`] = score;
             updates[`${DB_ROOT}/${roomId}/players/${myPlayerId}/score`] = newTotalScore;
             
-            if(isYahtzeeEvent) {
+            // 4. 事件觸發 (動畫)
+            if(isPrimaryYahtzee) {
                 updates[`${DB_ROOT}/${roomId}/lastEvent`] = {
                     type: 'YAHTZEE',
                     nickname: myNickname,
+                    id: Date.now()
+                };
+            } else if (bonusToAdd > 0) {
+                updates[`${DB_ROOT}/${roomId}/lastEvent`] = {
+                    type: 'YAHTZEE',
+                    nickname: myNickname + " (+100!)",
                     id: Date.now()
                 };
             }
