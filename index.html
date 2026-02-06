@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Yahtzee Online:></title>
+    <title>3D Yahtzee Online (Fixed)</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -14,7 +14,8 @@
             --die-size: 42px;
             --dot-color: #000;
             --die-base-color: #fff;
-            --admin-color: #9b59b6; /* 管理員專用色 */
+            --admin-color: #9b59b6;
+            --info-color: #3498db;
         }
 
         body {
@@ -38,11 +39,13 @@
             flex-direction: column;
             align-items: center;
             text-align: center;
+            padding-bottom: 50px;
         }
         
         .active-view { display: flex; }
 
         h1 { margin: 5px 0 10px 0; color: var(--accent-color); font-size: 1.5rem; }
+        h2 { margin: 5px 0; font-size: 1.2rem; color: #bdc3c7; }
         
         .btn-group {
             display: flex;
@@ -61,19 +64,23 @@
             border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
+            position: relative;
         }
         .menu-btn:active { transform: scale(0.98); }
         .menu-btn.primary { background: var(--accent-color); border-color: #d35400; }
+        .menu-btn.info { background: var(--info-color); border-color: #2980b9; }
         
         /* 管理員按鈕樣式 */
         .menu-btn.admin-btn {
             background: var(--admin-color);
             border-color: #8e44ad;
-            display: none; /* 預設隱藏 */
+            display: none;
         }
         .menu-btn.admin-btn.visible { display: block; }
+        .admin-controls-area { border: 1px dashed var(--admin-color); padding: 10px; border-radius: 8px; margin: 10px 0; width: 90%; display:none;}
+        .admin-controls-area.active { display: flex; flex-direction: column; gap: 5px; }
 
-        input[type="text"], input[type="number"] {
+        input[type="text"], input[type="number"], input[type="password"] {
             padding: 10px;
             font-size: 1rem;
             border-radius: 5px;
@@ -89,7 +96,7 @@
             border-radius: 8px;
             padding: 10px;
             margin-top: 10px;
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
         }
         .room-item {
@@ -101,53 +108,38 @@
             justify-content: space-between;
             align-items: center;
         }
-        .room-status { font-size: 0.8rem; color: #aaa; }
-        .join-btn {
-            background: var(--confirm-color);
-            border: none;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .delete-btn {
-            background: #c0392b;
-            border: none;
-            color: white;
-            padding: 5px 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            margin-left: 5px;
-        }
-
-        .players-bar {
-            display: flex;
-            width: 100%;
+        .room-item.leaderboard-item {
+            display: grid;
+            grid-template-columns: 1fr 60px 60px; /* Name, Score, Action */
             gap: 5px;
+            text-align: left;
+        }
+        /* 管理員詳細卡片樣式 */
+        .admin-room-card {
+            background: #2a2a2a;
+            border-left: 4px solid var(--admin-color);
+            padding: 10px;
             margin-bottom: 10px;
-            overflow-x: auto;
-            padding-bottom: 5px;
+            text-align: left;
+            border-radius: 4px;
         }
-        .player-badge {
-            background: #333;
+        
+        .room-status { font-size: 0.8rem; color: #aaa; }
+        
+        .action-btn {
+            border: none;
+            color: white;
             padding: 5px 10px;
-            border-radius: 15px;
+            border-radius: 4px;
+            cursor: pointer;
             font-size: 0.8rem;
-            white-space: nowrap;
-            border: 2px solid transparent;
-            opacity: 0.7;
         }
-        .player-badge.active-turn {
-            border-color: var(--accent-color);
-            background: #444;
-            opacity: 1;
-            font-weight: bold;
-        }
-        .player-badge.is-me {
-            color: #3498db;
-        }
+        .join-btn { background: var(--confirm-color); }
+        .view-btn { background: var(--info-color); }
+        .delete-btn { background: #c0392b; margin-left: 5px;}
+        .warn-btn { background: #d35400; margin-left: 5px; }
 
+        /* Dice & Game Styles */
         .dice-board {
             display: flex;
             justify-content: center;
@@ -213,19 +205,15 @@
         .column { flex: 1; background: var(--secondary-bg); padding: 2px; border-radius: 6px; overflow-x: auto; }
         
         table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-        
         th.player-header {
             font-size: 0.7rem; color: #aaa; text-align: center; 
             padding: 4px 0; border-bottom: 1px solid #555;
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         th.player-header.is-me-header { color: #3498db; font-weight: bold; }
-        
         td { padding: 4px 1px; border-bottom: 1px solid #444; vertical-align: middle; font-size: 0.8rem; }
-        
         tr.score-row { height: 32px; transition: background 0.2s; cursor: pointer; }
         tr.score-row.selected-row { background: rgba(39, 174, 96, 0.4); border: 1px solid #2ecc71; }
-        
         .score-cell { 
             font-family: 'Courier New', monospace; font-weight: bold; 
             text-align: center; border-left: 1px solid #444; 
@@ -234,32 +222,21 @@
         .score-cell.my-cell { background: rgba(52, 152, 219, 0.05); } 
         .preview-text { color: #f1c40f; font-style: italic; }
         .filled { color: #2ecc71; pointer-events: none; }
-        
         td.icon-col { width: 35px; text-align: center; }
         
         /* Mini Dice Icons */
         .mini-die { 
-            width: 16px; 
-            height: 16px; 
-            background: white; 
-            border-radius: 3px; 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            grid-template-rows: repeat(3, 1fr); 
-            padding: 1px; 
-            margin: 0 auto; 
-            gap: 0.5px;
-            box-sizing: border-box;
+            width: 16px; height: 16px; background: white; border-radius: 3px; 
+            display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, 1fr); 
+            padding: 1px; margin: 0 auto; gap: 0.5px; box-sizing: border-box;
         }
         .mini-dot { background: black; border-radius: 50%; width: 100%; height: 100%; }
-
         .m-d-1 :nth-child(1) { grid-area: 2 / 2; }
         .m-d-2 :nth-child(1) { grid-area: 1 / 1; } .m-d-2 :nth-child(2) { grid-area: 3 / 3; }
         .m-d-3 :nth-child(1) { grid-area: 1 / 1; } .m-d-3 :nth-child(2) { grid-area: 2 / 2; } .m-d-3 :nth-child(3) { grid-area: 3 / 3; }
         .m-d-4 :nth-child(1) { grid-area: 1 / 1; } .m-d-4 :nth-child(2) { grid-area: 1 / 3; } .m-d-4 :nth-child(3) { grid-area: 3 / 1; } .m-d-4 :nth-child(4) { grid-area: 3 / 3; }
         .m-d-5 :nth-child(1) { grid-area: 1 / 1; } .m-d-5 :nth-child(2) { grid-area: 1 / 3; } .m-d-5 :nth-child(3) { grid-area: 2 / 2; } .m-d-5 :nth-child(4) { grid-area: 3 / 1; } .m-d-5 :nth-child(5) { grid-area: 3 / 3; }
         .m-d-6 :nth-child(1) { grid-area: 1 / 1; } .m-d-6 :nth-child(2) { grid-area: 1 / 3; } .m-d-6 :nth-child(3) { grid-area: 2 / 1; } .m-d-6 :nth-child(4) { grid-area: 2 / 3; } .m-d-6 :nth-child(5) { grid-area: 3 / 1; } .m-d-6 :nth-child(6) { grid-area: 3 / 3; }
-        
         .symbol-text { font-size: 0.8rem; font-weight: 800; color: #bdc3c7; }
         
         #grand-total-display { font-size: 1.2rem; color: #f1c40f; margin-top: 10px; font-weight: bold; padding: 10px; background: #222; border-radius: 6px; }
@@ -270,129 +247,47 @@
             .right { transform: rotateY(90deg) translateZ(19px); } .left { transform: rotateY(-90deg) translateZ(19px); }
             .top { transform: rotateX(90deg) translateZ(19px); } .bottom { transform: rotateX(-90deg) translateZ(19px); }
         }
-        
-        #turn-indicator {
-            background: #2980b9; color: white; padding: 5px 15px; border-radius: 20px; 
-            margin-bottom: 10px; font-size: 0.9rem; font-weight: bold;
-        }
 
-        #loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); z-index: 2000;
-            display: none; justify-content: center; align-items: center; color: white;
-        }
-
-        .wait-actions {
-            margin-top: 20px;
-            display: flex;
-            gap: 10px;
-            flex-direction: column;
-            width: 80%;
-        }
-
-        /* 全螢幕 Yahtzee / Game Over 覆蓋層 */
+        /* Overlay & Special Effects */
         #special-event-overlay {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 3000;
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            pointer-events: none; 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); z-index: 3000; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            overflow: hidden; pointer-events: none; 
         }
-        
-        #special-event-overlay.active {
-            display: flex;
-            pointer-events: auto;
-        }
-
-        /* 彩虹背景動畫 */
+        #special-event-overlay.active { display: flex; pointer-events: auto; }
         .rainbow-bg {
             background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3);
-            background-size: 1800% 1800%;
-            animation: rainbow-anim 2s ease infinite;
+            background-size: 1800% 1800%; animation: rainbow-anim 2s ease infinite;
         }
+        @keyframes rainbow-anim { 0% {background-position:0% 82%} 50% {background-position:100% 19%} 100% {background-position:0% 82%} }
+        .cheer-text { font-size: 3rem; font-weight: 900; color: #fff; text-transform: uppercase; text-align: center; animation: pulse-text 0.5s infinite alternate; text-shadow: 0 4px 10px rgba(0,0,0,0.5); margin: 0 20px; line-height: 1.2; }
+        .sub-cheer { color: white; margin-top: 20px; font-size: 1.5rem; font-weight: bold; text-shadow: 0 2px 5px rgba(0,0,0,0.5); text-align: center; }
+        .confetti { position: absolute; width: 10px; height: 10px; background: #e74c3c; animation: fall linear forwards; z-index: 3001; }
+        @keyframes pulse-text { from { transform: scale(1); } to { transform: scale(1.1); } }
+        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
 
-        @keyframes rainbow-anim { 
-            0% {background-position:0% 82%}
-            50% {background-position:100% 19%}
-            100% {background-position:0% 82%}
-        }
+        /* Admin & Players Bar */
+        .players-bar { display: flex; width: 100%; gap: 5px; margin-bottom: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .player-badge { background: #333; padding: 5px 10px; border-radius: 15px; font-size: 0.8rem; white-space: nowrap; border: 2px solid transparent; opacity: 0.7; }
+        .player-badge.active-turn { border-color: var(--accent-color); background: #444; opacity: 1; font-weight: bold; }
+        .player-badge.is-me { color: #3498db; }
         
-        .cheer-text {
-            font-size: 3rem;
-            font-weight: 900;
-            color: #fff;
-            text-transform: uppercase;
-            text-align: center;
-            animation: pulse-text 0.5s infinite alternate;
-            text-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            margin: 0 20px;
-            line-height: 1.2;
-        }
-
-        .sub-cheer {
-            color: white; 
-            margin-top: 20px; 
-            font-size: 1.5rem; 
-            font-weight: bold; 
-            text-shadow: 0 2px 5px rgba(0,0,0,0.5);
-            text-align: center;
-        }
-        
-        .confetti {
-            position: absolute;
-            width: 10px; height: 10px;
-            background: #e74c3c;
-            animation: fall linear forwards;
-            z-index: 3001;
-        }
-
-        @keyframes pulse-text {
-            from { transform: scale(1); }
-            to { transform: scale(1.1); }
-        }
-        
-        @keyframes fall {
-            to { transform: translateY(100vh) rotate(720deg); }
-        }
-
-        /* Admin Controls */
-        #admin-panel {
-            display: none; /* Default hidden */
-            margin-top: 15px;
-            padding: 10px;
-            background: #2c3e50;
-            border: 2px solid var(--admin-color);
-            border-radius: 8px;
-            flex-direction: column;
-            align-items: center;
-            width: 90%;
-            max-width: 400px;
-        }
+        #admin-panel { display: none; margin-top: 15px; padding: 10px; background: #2c3e50; border: 2px solid var(--admin-color); border-radius: 8px; flex-direction: column; align-items: center; width: 90%; max-width: 400px; }
         #admin-panel.active { display: flex; }
-        
-        .admin-dice-inputs {
-            display: flex;
-            gap: 5px;
-            margin-bottom: 5px;
+        .admin-dice-inputs { display: flex; gap: 5px; margin-bottom: 5px; }
+        .admin-die-input { width: 30px !important; padding: 5px !important; margin: 0 !important; text-align: center; }
+
+        /* Tutorial & Text */
+        .tutorial-content { text-align: left; background: #333; padding: 15px; border-radius: 8px; font-size: 0.9rem; line-height: 1.5; height: 350px; overflow-y: auto; width: 90%; }
+        .tutorial-content h3 { color: var(--accent-color); border-bottom: 1px solid #555; padding-bottom: 5px; }
+        .tutorial-content ul { padding-left: 20px; }
+
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
         }
-        .admin-die-input {
-            width: 30px !important;
-            padding: 5px !important;
-            margin: 0 !important;
-            text-align: center;
-        }
-        .admin-check-group {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.9rem;
-            color: var(--admin-color);
-        }
+        .modal-box { background: #222; padding: 20px; border-radius: 8px; width: 80%; max-width: 300px; text-align: center; border: 1px solid var(--accent-color); }
     </style>
 </head>
 <body>
@@ -403,19 +298,19 @@
     </div>
 
     <div id="landing-view" class="view-section active-view">
-        <h1>🎲 3D Yahtzee Mobile</h1>
+        <h1>🎲 3D Yahtzee Pro</h1>
         <div class="btn-group">
             <button class="menu-btn primary" onclick="goToNickname()">連線對戰 (匹配模式)</button>
-            <button class="menu-btn" onclick="startSoloGame()">單機練習 (Solo)</button>
+            <button class="menu-btn" onclick="showChallengeLobby()">挑戰擂台 (排行榜)</button>
+            <button class="menu-btn" onclick="startSoloGame()">單人練習 (Solo)</button>
+            <button class="menu-btn info" onclick="showTutorial()">教學模式 (規則)</button>
             <button id="admin-entry-btn" class="menu-btn admin-btn" onclick="showAdminRoomManager()">🔴 房間管理 (yahtzee_rooms)</button>
         </div>
     </div>
 
     <div id="admin-room-view" class="view-section">
-        <h1 style="color: var(--admin-color)">🔧 管理員後台</h1>
-        <div class="room-list" id="admin-room-list" style="max-height: 400px;">
-            <div style="padding:10px; color:#aaa;">載入中...</div>
-        </div>
+        <h1 style="color: var(--admin-color)">🔧 管理員後台 (多人)</h1>
+        <div class="room-list" id="admin-room-list" style="max-height: 400px; background: transparent;"></div>
         <div class="btn-group">
             <button class="menu-btn" onclick="showView('landing-view')">返回首頁</button>
         </div>
@@ -433,7 +328,6 @@
     <div id="lobby-view" class="view-section">
         <h1>遊戲大廳</h1>
         <p>歡迎, <span id="lobby-nickname" style="color:var(--accent-color)"></span></p>
-        
         <div style="width: 100%; margin: 10px 0;">
             <div style="display: flex; gap: 10px; justify-content: center; align-items: center; margin-bottom: 10px;">
                 <label>人數:</label>
@@ -442,15 +336,10 @@
                     <option value="3">3人</option>
                     <option value="4">4人</option>
                 </select>
-                <button class="join-btn" onclick="createRoom()">創立房間</button>
+                <button class="action-btn join-btn" style="font-size:1rem; padding:8px;" onclick="createRoom()">創立房間</button>
             </div>
-            
-            <h3 style="text-align: left; margin-left: 10px;">現有房間:</h3>
-            <div id="room-list-container" class="room-list">
-                <div style="color: #666; font-size: 0.9rem;">正在載入房間...</div>
-            </div>
+            <div id="room-list-container" class="room-list"></div>
         </div>
-
         <button class="menu-btn" onclick="showView('landing-view')" style="margin-top: 20px; padding: 10px 20px;">離開</button>
     </div>
 
@@ -458,32 +347,94 @@
         <h1>等待加入中...</h1>
         <p>房間 ID: <span id="wait-room-id" style="color: #f1c40f; font-family: monospace;"></span></p>
         <p>玩家: <span id="wait-player-count">1</span> / <span id="wait-max-players">2</span></p>
-        <div class="room-list" id="wait-player-list">
+        <div class="room-list" id="wait-player-list"></div>
+        <div class="btn-group">
+            <button id="host-start-btn" class="menu-btn primary" style="display:none;" onclick="manualStartGame()">開始遊戲 (手動)</button>
+            <button class="menu-btn" style="background:#c0392b; border-color:#922b21;" onclick="leaveWaitingRoom()">離開房間</button>
+        </div>
+    </div>
+
+    <div id="challenge-lobby-view" class="view-section">
+        <h1>🏆 挑戰擂台</h1>
+        
+        <div id="admin-challenge-controls" class="admin-controls-area">
+            <h3 style="color:var(--admin-color); margin:0;">管理員：創建擂台</h3>
+            <input type="text" id="new-challenge-name" placeholder="擂台名稱 (如: 週末盃)" style="width:90%">
+            <input type="text" id="new-challenge-pass" placeholder="密碼 (空白為公開)" style="width:90%">
+            <button class="action-btn join-btn" onclick="createChallengeRoom()">建立</button>
+        </div>
+
+        <div class="room-list" id="challenge-room-list">
+            <div style="padding:10px; color:#aaa;">讀取擂台中...</div>
         </div>
         
-        <div class="wait-actions">
-            <button id="host-start-btn" class="menu-btn primary" style="display:none; padding:10px;" onclick="manualStartGame()">開始遊戲 (手動)</button>
-            <button class="menu-btn" style="background:#c0392b; border-color:#922b21; padding:10px;" onclick="leaveWaitingRoom()">離開房間</button>
+        <div class="btn-group">
+            <button class="menu-btn" onclick="showView('landing-view')">返回首頁</button>
         </div>
-        <div style="margin-top: 10px; color: #aaa; font-size: 0.8rem;">人數到齊後通常會自動開始</div>
+    </div>
+
+    <div id="challenge-room-detail" class="view-section">
+        <h2 id="c-room-title">擂台詳情</h2>
+        <p style="font-size:0.8rem; color:#aaa;">ID: <span id="c-room-id"></span></p>
+        
+        <div class="room-list" id="c-leaderboard-list">
+            </div>
+
+        <div class="btn-group">
+            <button class="menu-btn primary" onclick="promptChallengeStart()">⚔️ 我要挑戰</button>
+            <button class="menu-btn" onclick="showChallengeLobby()">返回列表</button>
+        </div>
+    </div>
+
+    <div id="tutorial-view" class="view-section">
+        <h1>📜 遊戲教學</h1>
+        <div class="tutorial-content">
+            <h3>遊戲目標</h3>
+            <p>擲骰子並在記分板上獲得最高分。遊戲共 13 回合。</p>
+            <h3>回合流程</h3>
+            <ul>
+                <li>每回合有 3 次擲骰機會。</li>
+                <li>點擊骰子可以「鎖定/解鎖」保留點數。</li>
+                <li>第 3 次擲骰後（或提前），必須在記分板選擇一格填分。</li>
+            </ul>
+            <h3>計分規則 (左半邊)</h3>
+            <p>對應點數總和。若上層總分 >= 63，額外獲得 35 分獎勵。</p>
+            <h3>計分規則 (右半邊)</h3>
+            <ul>
+                <li>3X (三條): 3顆相同，總和計分。</li>
+                <li>4X (四條): 4顆相同，總和計分。</li>
+                <li>🏠 (葫蘆): 3同+2同，固定 25 分。</li>
+                <li>小順: 4連號，固定 30 分。</li>
+                <li>大順: 5連號，固定 40 分。</li>
+                <li>Y! (Yahtzee): 5顆相同，固定 50 分。</li>
+                <li>? (機會): 所有骰子總和。</li>
+            </ul>
+            <h3>特殊獎勵</h3>
+            <p>若在擲出多次 Yahtzee，且 Y! 格已填滿 50 分，每次額外 +100 分！</p>
+        </div>
+        <div class="btn-group">
+            <button class="menu-btn" onclick="showView('landing-view')">明白，開始玩！</button>
+        </div>
     </div>
 
     <div id="game-view" class="view-section">
-        <div class="players-bar" id="ingame-players-bar">
-            </div>
-        <div id="turn-indicator">等待開始...</div>
+        <div class="players-bar" id="ingame-players-bar"></div>
+        <div id="turn-indicator" style="background: #8e44ad; color: white; padding: 5px 15px; border-radius: 20px; margin-bottom: 10px;">單人模式</div>
         
-        <div class="dice-board" id="dice-container">
-            </div>
+        <div class="dice-board" id="dice-container"></div>
 
-        <div class="controls">
+        <div class="controls" id="game-controls">
             <button id="roll-btn" onclick="handleRollClick()">擲骰 (<span id="rolls-left">3</span>)</button>
             <button id="confirm-btn" onclick="handleConfirmClick()" disabled>確認</button>
             <button id="quit-btn" onclick="quitGame()">退出</button>
         </div>
+        
+        <div class="controls" id="record-controls" style="display:none;">
+            <button class="menu-btn" onclick="exitRecordView()">關閉查看</button>
+        </div>
 
         <div id="admin-panel">
-            <div style="color: #9b59b6; font-weight: bold; margin-bottom:5px;">👾 God Mode Controls</div>
+            <div style="color: #9b59b6; font-weight: bold; margin-bottom:5px;">👾 God Mode</div>
             <div class="admin-dice-inputs">
                 <input type="number" id="admin-d0" class="admin-die-input" min="1" max="6" placeholder="?">
                 <input type="number" id="admin-d1" class="admin-die-input" min="1" max="6" placeholder="?">
@@ -491,9 +442,8 @@
                 <input type="number" id="admin-d3" class="admin-die-input" min="1" max="6" placeholder="?">
                 <input type="number" id="admin-d4" class="admin-die-input" min="1" max="6" placeholder="?">
             </div>
-            <div class="admin-check-group">
-                <input type="checkbox" id="admin-infinite-rolls">
-                <label for="admin-infinite-rolls">無限擲骰 (Inf.)</label>
+            <div style="display:flex; gap:10px;">
+                <label style="color:#f1c40f"><input type="checkbox" id="admin-infinite-rolls"> 無限擲骰</label>
             </div>
         </div>
 
@@ -509,7 +459,16 @@
         <div id="grand-total-display">總分: <span id="grand-total">0</span></div>
     </div>
 
-    <div id="loading-overlay">處理中...</div>
+    <div id="challenge-name-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3>輸入挑戰暱稱</h3>
+            <input type="text" id="challenge-nickname-input" placeholder="名稱" maxlength="8" style="width:90%; color:black;">
+            <div style="margin-top:10px; display:flex; gap:5px; justify-content:center;">
+                <button class="action-btn join-btn" onclick="confirmChallengeStart()">開始</button>
+                <button class="action-btn delete-btn" onclick="document.getElementById('challenge-name-modal').style.display='none'">取消</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
@@ -529,24 +488,30 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        const DB_ROOT = "yahtzee_rooms"; 
+        const ROOMS_ROOT = "yahtzee_rooms";
+        const CHALLENGE_ROOT = "challenge_rooms";
 
+        // Global State
         let myNickname = "";
         let myPlayerId = "";
         let currentRoomId = "";
         let currentRoomData = null;
         let isMyTurn = false;
-        let isSoloMode = false;
-        let lastProcessedEventId = 0; 
         
-        let localSelection = null; 
+        // Game Modes: 'multiplayer', 'solo', 'challenge', 'view_record'
+        let currentGameMode = 'solo'; 
         
-        // --- Admin Mode Global Variables ---
+        // Admin State
         let isAdmin = false;
-        let isWangTester = false; // 新增：汪測試員標記
+        let isWangTester = false;
         let keyBuffer = "";
         const SECRET_CODE = "991020";
 
+        // Challenge Specifics
+        let currentChallengeRoomId = null;
+        let currentChallengeLeaderboard = []; // Cache for duplicate checking
+
+        // Solo / Local Game State (Used for Solo & Challenge)
         let soloState = {
             dice: [1, 1, 1, 1, 1],
             locked: [false, false, false, false, false],
@@ -555,14 +520,15 @@
             board: {},
             score: 0
         };
+        let localSelection = null; 
 
-        // --- Admin Input Listener (隱藏按鍵觸發) ---
+        // --- 1. Event Listeners & Init ---
+
         window.addEventListener('keydown', (e) => {
             if(document.getElementById('landing-view').classList.contains('active-view')) {
                 if(e.key >= "0" && e.key <= "9") {
                     keyBuffer += e.key;
                     if(keyBuffer.length > 20) keyBuffer = keyBuffer.slice(-20);
-                    
                     if(keyBuffer.endsWith(SECRET_CODE)) {
                         enableAdminMode();
                         keyBuffer = ""; 
@@ -575,86 +541,361 @@
             if(isAdmin) return;
             isAdmin = true;
             document.getElementById('admin-entry-btn').classList.add('visible');
+            document.querySelectorAll('.admin-controls-area').forEach(e => e.classList.add('active'));
+            // FIX: If we are already in the game view, show the panel immediately
+            if(document.getElementById('game-view').classList.contains('active-view')) {
+                document.getElementById('admin-panel').classList.add('active');
+            }
+            alert("God Mode Enabled");
         }
 
-        window.showAdminRoomManager = () => {
-            showView('admin-room-view');
-            const roomsRef = ref(db, DB_ROOT);
-            onValue(roomsRef, (snapshot) => {
-                const list = document.getElementById('admin-room-list');
-                list.innerHTML = "";
-                const data = snapshot.val();
-                
-                if(!data) {
-                    list.innerHTML = "<div style='padding:10px;'>目前沒有任何房間。</div>";
-                    return;
-                }
-
-                Object.values(data).forEach(room => {
-                    const div = document.createElement('div');
-                    div.className = 'room-item';
-                    div.style.border = "1px solid #555";
-                    div.innerHTML = `
-                        <div style="text-align:left;">
-                            <div style="font-weight:bold; color:#f1c40f">ID: ${room.id}</div>
-                            <div style="font-size:0.8rem">Host: ${room.host} | Status: ${room.status}</div>
-                            <div style="font-size:0.8rem">Players: ${room.players ? Object.keys(room.players).length : 0}</div>
-                        </div>
-                        <button class="delete-btn" onclick="window.adminDeleteRoom('${room.id}')">強制刪除</button>
-                    `;
-                    list.appendChild(div);
-                });
-            }); 
+        window.showView = (id) => {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active-view'));
+            const target = document.getElementById(id);
+            if(target) target.classList.add('active-view');
         };
 
-        window.adminDeleteRoom = async (roomId) => {
-            if(confirm(`確定要強制刪除房間 ${roomId} 嗎？所有玩家將被踢出。`)) {
-                await remove(ref(db, `${DB_ROOT}/${roomId}`));
-            }
-        };
+        window.showTutorial = () => showView('tutorial-view');
+
+        // --- 2. Multiplayer Logic (Existing/Adapted) ---
 
         window.goToNickname = () => {
-            isSoloMode = false;
-            // 新增：檢測是否為汪測試員，若是則跳過輸入
+            currentGameMode = 'multiplayer';
             if (isWangTester) {
                 myNickname = "汪(測試員)";
                 myPlayerId = 'p_' + Date.now() + '_' + Math.floor(Math.random()*1000);
                 document.getElementById('lobby-nickname').innerText = myNickname;
                 showView('lobby-view');
-                listenToRooms();
+                listenToMultiplayerRooms();
             } else {
                 showView('nickname-view');
             }
         };
-        
+
         window.enterLobby = () => {
             const input = document.getElementById('nickname-input');
             const val = input.value.trim();
             if(!val) { alert("請輸入暱稱"); return; }
             
-            // 新增：檢測 991025 代碼
             if (val === "991025") {
                 isWangTester = true;
-                isAdmin = true; // 同時賦予管理員權限
-                document.getElementById('admin-entry-btn').classList.add('visible');
+                enableAdminMode();
                 alert("歡迎汪測試員");
-                showView('landing-view'); // 回到首頁
-                input.value = ""; // 清空輸入
+                showView('landing-view'); 
+                input.value = ""; 
                 return;
             }
 
             myNickname = val;
             myPlayerId = 'p_' + Date.now() + '_' + Math.floor(Math.random()*1000);
-            
             document.getElementById('lobby-nickname').innerText = myNickname;
             showView('lobby-view');
-            listenToRooms();
+            listenToMultiplayerRooms();
         };
 
+        window.createRoom = async () => {
+            const playerCount = parseInt(document.getElementById('player-count-select').value);
+            const newRoomRef = push(ref(db, ROOMS_ROOT));
+            const roomId = newRoomRef.key;
+            
+            await set(newRoomRef, {
+                id: roomId,
+                host: myNickname,
+                status: "waiting",
+                maxPlayers: playerCount,
+                currentTurnIndex: 0,
+                gameState: { dice: [1,1,1,1,1], locked: [false,false,false,false,false], rollsLeft: 3, isRolling: false },
+                players: {
+                    [myPlayerId]: { nickname: myNickname, score: 0, board: {} }
+                }
+            });
+            joinMultiplayerRoom(roomId);
+        };
+
+        function listenToMultiplayerRooms() {
+            onValue(ref(db, ROOMS_ROOT), (snapshot) => {
+                if(!document.getElementById('lobby-view').classList.contains('active-view')) return;
+                const list = document.getElementById('room-list-container');
+                list.innerHTML = "";
+                const data = snapshot.val();
+                if(!data) { list.innerHTML = "<div style='color:#666'>無房間</div>"; return; }
+
+                Object.values(data).forEach(room => {
+                    if(room.status === 'waiting') {
+                        const count = room.players ? Object.keys(room.players).length : 0;
+                        const div = document.createElement('div');
+                        div.className = 'room-item';
+                        div.innerHTML = `
+                            <div><span style="font-weight:bold">${room.host}</span> <span class="room-status">${count}/${room.maxPlayers}</span></div>
+                            <button class="action-btn join-btn" onclick="window.tryJoin('${room.id}')">加入</button>
+                        `;
+                        list.appendChild(div);
+                    }
+                });
+            });
+        }
+
+        window.tryJoin = async (roomId) => {
+            const roomRef = ref(db, `${ROOMS_ROOT}/${roomId}`);
+            const snapshot = await get(roomRef);
+            if(!snapshot.exists()) { alert("房間不存在"); return; }
+            const room = snapshot.val();
+            if(room.status !== 'waiting') { alert("遊戲已開始"); return; }
+            if(Object.keys(room.players || {}).length >= room.maxPlayers) { alert("房間已滿"); return; }
+
+            // Bug fix: Removed manual index assignment to avoid race conditions
+            await update(ref(db, `${ROOMS_ROOT}/${roomId}/players/${myPlayerId}`), {
+                nickname: myNickname, score: 0, board: {}
+            });
+            joinMultiplayerRoom(roomId);
+        };
+
+        function joinMultiplayerRoom(roomId) {
+            currentRoomId = roomId;
+            const roomRef = ref(db, `${ROOMS_ROOT}/${roomId}`);
+            onDisconnect(ref(db, `${ROOMS_ROOT}/${roomId}/players/${myPlayerId}`)).remove();
+
+            onValue(roomRef, (snapshot) => {
+                const data = snapshot.val();
+                if(!data) { 
+                    if(currentGameMode === 'multiplayer') { alert("房間已解散"); showView('lobby-view'); }
+                    return; 
+                }
+                currentRoomData = data;
+                
+                // Event Handling (Yahtzee)
+                if (data.lastEvent && data.lastEvent.id > (window.lastProcessedEventId || 0)) {
+                    window.lastProcessedEventId = data.lastEvent.id;
+                    if (data.lastEvent.type === 'YAHTZEE') showOverlay(`YAHTZEE!`, `${data.lastEvent.nickname} 骰出 Yahtzee!`, true, 4000);
+                }
+
+                // BUG FIX: Sort players by Key ID (timestamp based) to ensure consistent order across clients
+                const players = Object.entries(data.players || {})
+                    .map(([key, val]) => ({...val, pid: key}))
+                    .sort((a,b) => a.pid.localeCompare(b.pid));
+                
+                if (data.status === 'waiting') {
+                    showView('waiting-view');
+                    document.getElementById('wait-room-id').innerText = roomId.slice(-4);
+                    document.getElementById('wait-player-count').innerText = players.length;
+                    document.getElementById('wait-max-players').innerText = data.maxPlayers;
+                    document.getElementById('wait-player-list').innerHTML = players.map(p => `<div class="room-item">${p.nickname} ${p.nickname===myNickname?'(你)':''}</div>`).join('');
+                    
+                    if(myNickname === data.host) {
+                        document.getElementById('host-start-btn').style.display = 'block';
+                        if(players.length >= data.maxPlayers) update(roomRef, { status: 'playing' });
+                    }
+                } else if (data.status === 'playing') {
+                    if(!document.getElementById('game-view').classList.contains('active-view')) {
+                        initGameUI('multiplayer');
+                        showView('game-view');
+                        // FIX: Ensure admin panel shows if user is already admin
+                        if(isAdmin) document.getElementById('admin-panel').classList.add('active');
+                    }
+                    syncMultiplayerUI(data, players);
+                    checkGameOver(players);
+                }
+            });
+        }
+
+        window.leaveWaitingRoom = async () => {
+            if(currentRoomId) await remove(ref(db, `${ROOMS_ROOT}/${currentRoomId}/players/${myPlayerId}`));
+            currentRoomId = ""; showView('lobby-view');
+        };
+
+        window.manualStartGame = async () => {
+            if(currentRoomId) update(ref(db, `${ROOMS_ROOT}/${currentRoomId}`), { status: 'playing' });
+        };
+
+        // --- 3. Challenge Arena Logic (New) ---
+
+        window.showChallengeLobby = () => {
+            showView('challenge-lobby-view');
+            // Listen for rooms
+            onValue(ref(db, CHALLENGE_ROOT), (snapshot) => {
+                const list = document.getElementById('challenge-room-list');
+                list.innerHTML = "";
+                const data = snapshot.val();
+                if(!data) { list.innerHTML = "<div style='padding:10px;'>目前沒有擂台。</div>"; return; }
+
+                Object.keys(data).forEach(key => {
+                    const room = data[key];
+                    const isProtected = room.password && room.password.trim() !== "";
+                    
+                    const div = document.createElement('div');
+                    div.className = 'room-item';
+                    div.innerHTML = `
+                        <div style="flex:1;">
+                            <div style="font-weight:bold; color:var(--accent-color)">${room.name}</div>
+                            <div class="room-status">${isProtected ? '🔒 私人' : '🔓 公開'} | 榜單: ${room.leaderboard ? Object.keys(room.leaderboard).length : 0}人</div>
+                        </div>
+                        <div>
+                            <button class="action-btn view-btn" onclick="window.enterChallengeRoom('${key}', '${room.password||''}', '${room.name}')">進入</button>
+                            ${(isAdmin || isWangTester) ? `<button class="action-btn delete-btn" onclick="window.deleteChallengeRoom('${key}')">刪除</button>` : ''}
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            });
+        };
+
+        window.createChallengeRoom = async () => {
+            const name = document.getElementById('new-challenge-name').value.trim();
+            const pass = document.getElementById('new-challenge-pass').value.trim();
+            if(!name) { alert("請輸入名稱"); return; }
+            
+            const newRef = push(ref(db, CHALLENGE_ROOT));
+            await set(newRef, {
+                name: name,
+                password: pass,
+                createdAt: Date.now()
+            });
+            document.getElementById('new-challenge-name').value = "";
+            document.getElementById('new-challenge-pass').value = "";
+        };
+
+        window.deleteChallengeRoom = async (roomId) => {
+            if(confirm("確定刪除此擂台？")) await remove(ref(db, `${CHALLENGE_ROOT}/${roomId}`));
+        };
+
+        window.enterChallengeRoom = async (roomId, password, roomName) => {
+            if (password && password !== "" && !isAdmin && !isWangTester) {
+                const input = prompt("請輸入擂台密碼:");
+                if(input !== password) { alert("密碼錯誤"); return; }
+            }
+
+            currentChallengeRoomId = roomId;
+            document.getElementById('c-room-title').innerText = roomName;
+            document.getElementById('c-room-id').innerText = roomId;
+            showView('challenge-room-detail');
+
+            // Listen to leaderboard
+            onValue(ref(db, `${CHALLENGE_ROOT}/${roomId}/leaderboard`), (snapshot) => {
+                const list = document.getElementById('c-leaderboard-list');
+                list.innerHTML = "";
+                const data = snapshot.val();
+                currentChallengeLeaderboard = []; // Reset cache
+
+                if(!data) { list.innerHTML = "<div style='padding:10px; color:#aaa'>暫無挑戰紀錄</div>"; return; }
+
+                // Convert to array and sort by score desc
+                const entries = Object.entries(data).map(([k, v]) => ({key: k, ...v}));
+                entries.sort((a,b) => b.score - a.score);
+                currentChallengeLeaderboard = entries; // Save for duplicate check
+
+                entries.forEach((entry, idx) => {
+                    const div = document.createElement('div');
+                    div.className = 'room-item leaderboard-item';
+                    
+                    let rankColor = "#aaa";
+                    if(idx===0) rankColor = "#f1c40f"; // Gold
+                    else if(idx===1) rankColor = "#bdc3c7"; // Silver
+                    else if(idx===2) rankColor = "#cd7f32"; // Bronze
+
+                    div.innerHTML = `
+                        <div style="color:${rankColor}; overflow:hidden; text-overflow:ellipsis;">
+                            <span style="font-weight:bold;">#${idx+1}</span> ${entry.nickname}
+                        </div>
+                        <div style="text-align:center; font-family:monospace; font-weight:bold;">${entry.score}</div>
+                        <div style="display:flex; justify-content:flex-end; gap:5px;">
+                            <button class="action-btn view-btn" onclick="window.viewPlayerRecord('${entry.key}')">查看</button>
+                            ${(isAdmin || isWangTester) ? `<button class="action-btn delete-btn" style="padding:2px 5px;" onclick="window.deleteChallengeEntry('${entry.key}')">X</button>` : ''}
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+            });
+        };
+
+        window.deleteChallengeEntry = async (entryKey) => {
+            if(confirm("移除此紀錄？")) await remove(ref(db, `${CHALLENGE_ROOT}/${currentChallengeRoomId}/leaderboard/${entryKey}`));
+        };
+
+        window.viewPlayerRecord = (entryKey) => {
+            const entry = currentChallengeLeaderboard.find(e => e.key === entryKey);
+            if(!entry) return;
+
+            currentGameMode = 'view_record';
+            initGameUI('record');
+            showView('game-view');
+            
+            // UI Tweaks for record view
+            document.getElementById('game-controls').style.display = 'none';
+            document.getElementById('record-controls').style.display = 'flex';
+            document.getElementById('turn-indicator').innerText = `查看: ${entry.nickname} 的紀錄`;
+            document.getElementById('turn-indicator').style.background = "#3498db";
+            
+            // Render board
+            const dummyPlayer = { nickname: entry.nickname, score: entry.score, board: entry.board, isMe: true };
+            renderScoreTables([dummyPlayer]);
+            document.getElementById('grand-total').innerText = entry.score;
+        };
+
+        window.exitRecordView = () => {
+            showView('challenge-room-detail');
+        };
+
+        window.promptChallengeStart = () => {
+            if(isWangTester) {
+                startChallengeRun("汪(測試員)");
+            } else {
+                document.getElementById('challenge-name-modal').style.display = 'flex';
+                document.getElementById('challenge-nickname-input').focus();
+            }
+        };
+
+        window.confirmChallengeStart = () => {
+            const name = document.getElementById('challenge-nickname-input').value.trim();
+            if(!name) { alert("請輸入名稱"); return; }
+
+            // Check duplicate
+            const exists = currentChallengeLeaderboard.some(e => e.nickname === name);
+            if(exists) {
+                alert("此暱稱已在榜單上，請使用其他名稱！");
+                return;
+            }
+
+            document.getElementById('challenge-name-modal').style.display = 'none';
+            startChallengeRun(name);
+        };
+
+        function startChallengeRun(nickname) {
+            myNickname = nickname;
+            currentGameMode = 'challenge';
+            
+            // Reset Solo State
+            soloState = {
+                dice: [1, 1, 1, 1, 1],
+                locked: [false, false, false, false, false],
+                rollsLeft: 3,
+                isRolling: false,
+                board: {},
+                score: 0
+            };
+            localSelection = null;
+
+            initGameUI('challenge');
+            showView('game-view');
+            
+            document.getElementById('turn-indicator').innerText = "挑戰開始！";
+            document.getElementById('turn-indicator').style.background = "#e74c3c";
+            document.getElementById('ingame-players-bar').innerHTML = `<div class="player-badge active-turn is-me">${myNickname}</div>`;
+            document.getElementById('rolls-left').innerText = "3";
+            document.getElementById('roll-btn').disabled = false;
+            document.getElementById('confirm-btn').disabled = true;
+            
+            if(isAdmin) document.getElementById('admin-panel').classList.add('active');
+            
+            updateDiceVisuals(soloState.dice, false, soloState.locked);
+            renderScoreTables([{ nickname: myNickname, score: 0, board: {}, isMe: true }]);
+        }
+
+
+        // --- 4. Solo / Challenge Game Logic ---
+
         window.startSoloGame = () => {
-            isSoloMode = true;
+            currentGameMode = 'solo';
             myNickname = "練習者";
-            myPlayerId = "solo_player";
             
             soloState = {
                 dice: [1, 1, 1, 1, 1],
@@ -666,242 +907,36 @@
             };
             localSelection = null;
 
-            initGameUI();
+            initGameUI('solo');
             showView('game-view');
-            
             if(isAdmin) document.getElementById('admin-panel').classList.add('active');
             
             document.getElementById('turn-indicator').innerText = "單機練習模式";
-            document.getElementById('turn-indicator').style.background = "#8e44ad";
+            document.getElementById('turn-indicator').style.background = "#27ae60";
             document.getElementById('ingame-players-bar').innerHTML = `<div class="player-badge active-turn is-me">${myNickname}</div>`;
-            document.getElementById('rolls-left').innerText = "3";
-            document.getElementById('roll-btn').disabled = false;
-            document.getElementById('confirm-btn').disabled = true;
             
             updateDiceVisuals(soloState.dice, false, soloState.locked);
-            
-            const soloPlayerList = [{
-                id: myPlayerId,
-                nickname: myNickname,
-                score: soloState.score,
-                board: soloState.board,
-                isMe: true
-            }];
-            renderScoreTables(soloPlayerList);
-        };
-
-        window.createRoom = async () => {
-            const playerCount = parseInt(document.getElementById('player-count-select').value);
-            const roomsRef = ref(db, DB_ROOT);
-            const newRoomRef = push(roomsRef);
-            const roomId = newRoomRef.key;
-
-            const initialData = {
-                id: roomId,
-                host: myNickname,
-                status: "waiting",
-                maxPlayers: playerCount,
-                currentTurnIndex: 0,
-                gameState: {
-                    dice: [1,1,1,1,1],
-                    locked: [false,false,false,false,false],
-                    rollsLeft: 3,
-                    isRolling: false,
-                    lastActionTimestamp: Date.now()
-                },
-                players: {
-                    [myPlayerId]: {
-                        nickname: myNickname,
-                        score: 0,
-                        board: {},
-                        index: 0
-                    }
-                },
-                lastEvent: { type: 'init', id: 0 } 
-            };
-
-            await set(newRoomRef, initialData);
-            joinRoomLogic(roomId);
+            renderScoreTables([{ nickname: myNickname, score: 0, board: {}, isMe: true }]);
         };
 
         window.quitGame = async () => {
-            if(confirm("確定要退出遊戲嗎？")) {
-                if (isSoloMode) {
-                    location.reload();
-                    return;
-                }
-
-                if (currentRoomId && myPlayerId) {
-                    try {
-                        const pRef = ref(db, `${DB_ROOT}/${currentRoomId}/players/${myPlayerId}`);
-                        await remove(pRef);
-                    } catch (e) {
-                        console.error("Remove player failed:", e);
-                    }
-                }
+            if(!confirm("確定要退出遊戲嗎？")) return;
+            
+            if(currentGameMode === 'multiplayer' && currentRoomId) {
+                await remove(ref(db, `${ROOMS_ROOT}/${currentRoomId}/players/${myPlayerId}`));
                 location.reload();
+            } else if (currentGameMode === 'challenge') {
+                showView('challenge-room-detail'); // Go back to leaderboard without saving
+            } else {
+                location.reload(); // Solo
             }
         };
 
-        window.leaveWaitingRoom = async () => {
-            if(!currentRoomId) return;
-            if(confirm("確定要離開房間嗎？")) {
-                const pRef = ref(db, `${DB_ROOT}/${currentRoomId}/players/${myPlayerId}`);
-                await remove(pRef);
-                currentRoomId = "";
-                currentRoomData = null;
-                showView('lobby-view');
-            }
-        };
-        
-        window.manualStartGame = async () => {
-             if(currentRoomId && currentRoomData) {
-                 const currentPlayers = currentRoomData.players || {};
-                 const actualCount = Object.keys(currentPlayers).length;
-                 
-                 await update(ref(db, `${DB_ROOT}/${currentRoomId}`), { 
-                     status: 'playing',
-                     maxPlayers: actualCount 
-                 });
-             }
-        };
+        // --- 5. Shared Game Core ---
 
-        window.showView = (id) => {
-            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active-view'));
-            const target = document.getElementById(id);
-            if(target) target.classList.add('active-view');
-        }
-
-        function listenToRooms() {
-            const roomsRef = ref(db, DB_ROOT);
-            onValue(roomsRef, (snapshot) => {
-                if(document.getElementById('admin-room-view').classList.contains('active-view')) return;
-
-                const list = document.getElementById('room-list-container');
-                list.innerHTML = "";
-                const data = snapshot.val();
-                
-                if(!data) {
-                    list.innerHTML = "<div style='padding:10px; color:#888;'>目前沒有房間，快創一個！</div>";
-                    return;
-                }
-
-                Object.values(data).forEach(room => {
-                    if(room.status === 'waiting') {
-                        const currentCount = room.players ? Object.keys(room.players).length : 0;
-                        const div = document.createElement('div');
-                        div.className = 'room-item';
-                        div.innerHTML = `
-                            <div>
-                                <div style="font-weight:bold">${room.host} 的房間</div>
-                                <div class="room-status">${currentCount}/${room.maxPlayers} 人</div>
-                            </div>
-                            <button class="join-btn" onclick="window.tryJoin('${room.id}')">加入</button>
-                        `;
-                        list.appendChild(div);
-                    }
-                });
-            });
-        }
-
-        window.tryJoin = async (roomId) => {
-            const roomRef = ref(db, `${DB_ROOT}/${roomId}`);
-            const snapshot = await get(roomRef);
-            if(!snapshot.exists()) { alert("房間已不存在"); return; }
-            
-            const room = snapshot.val();
-            if(room.status !== 'waiting') { alert("遊戲已開始"); return; }
-            
-            const players = room.players || {};
-            const pKeys = Object.keys(players);
-            if(pKeys.length >= room.maxPlayers) { alert("房間已滿"); return; }
-
-            const newIndex = pKeys.length;
-            const updates = {};
-            updates[`${DB_ROOT}/${roomId}/players/${myPlayerId}`] = {
-                nickname: myNickname,
-                score: 0,
-                board: {},
-                index: newIndex
-            };
-
-            await update(ref(db), updates);
-            joinRoomLogic(roomId);
-        };
-
-        function joinRoomLogic(roomId) {
-            currentRoomId = roomId;
-            const roomRef = ref(db, `${DB_ROOT}/${roomId}`);
-            
-            onDisconnect(ref(db, `${DB_ROOT}/${roomId}/players/${myPlayerId}`)).remove();
-
-            onValue(roomRef, (snapshot) => {
-                const data = snapshot.val();
-                if(!data) {
-                    if(document.getElementById('waiting-view').classList.contains('active-view') || 
-                       document.getElementById('game-view').classList.contains('active-view')) {
-                         alert("房間已被房主解散或不存在");
-                         showView('lobby-view');
-                    }
-                    return;
-                }
-                
-                currentRoomData = data;
-                
-                if (data.lastEvent && data.lastEvent.id > lastProcessedEventId) {
-                    lastProcessedEventId = data.lastEvent.id;
-                    if (data.lastEvent.type === 'YAHTZEE') {
-                        triggerGlobalYahtzee(data.lastEvent.nickname);
-                    }
-                }
-
-                const players = data.players || {};
-                
-                if(!players[myPlayerId] && !document.getElementById('lobby-view').classList.contains('active-view')) {
-                    showView('lobby-view');
-                    return;
-                }
-
-                const playerList = Object.values(players).sort((a,b) => a.index - b.index);
-                
-                if (data.status === 'waiting') {
-                    if (!document.getElementById('waiting-view').classList.contains('active-view')) {
-                        showView('waiting-view');
-                    }
-                    
-                    document.getElementById('wait-room-id').innerText = roomId.slice(-4);
-                    document.getElementById('wait-player-count').innerText = playerList.length;
-                    document.getElementById('wait-max-players').innerText = data.maxPlayers;
-                    
-                    const waitList = document.getElementById('wait-player-list');
-                    waitList.innerHTML = playerList.map(p => 
-                        `<div class="room-item">${p.nickname} ${p.nickname===myNickname?'(你)':''} ${p.nickname===data.host?'👑':''}</div>`
-                    ).join('');
-
-                    const startBtn = document.getElementById('host-start-btn');
-                    if(myNickname === data.host) {
-                        startBtn.style.display = 'block';
-                        if (playerList.length >= data.maxPlayers) {
-                             update(ref(db, `${DB_ROOT}/${roomId}`), { status: 'playing' });
-                        }
-                    } else {
-                        startBtn.style.display = 'none';
-                    }
-
-                } else if (data.status === 'playing') {
-                    const gameView = document.getElementById('game-view');
-                    if(!gameView.classList.contains('active-view')) {
-                        initGameUI(); 
-                        showView('game-view');
-                        if(isAdmin) document.getElementById('admin-panel').classList.add('active');
-                    }
-                    syncGameUI(data, playerList);
-                    checkGameOver(playerList);
-                }
-            });
-        }
-
-        function initGameUI() {
+        function initGameUI(mode) {
+            document.getElementById('game-controls').style.display = 'flex';
+            document.getElementById('record-controls').style.display = 'none';
             const container = document.getElementById('dice-container');
             container.innerHTML = '';
             for(let i=0; i<5; i++) {
@@ -919,559 +954,465 @@
             }
         }
 
-        function syncGameUI(data, playerList) {
-            if(isSoloMode) return;
-
+        function syncMultiplayerUI(data, playerList) {
             const gameState = data.gameState;
             const safeIndex = data.currentTurnIndex % playerList.length;
             const currentPlayer = playerList[safeIndex];
-            
             if(!currentPlayer) return;
 
             isMyTurn = (currentPlayer.nickname === myNickname);
-
-            const indicator = document.getElementById('turn-indicator');
-            indicator.style.background = isMyTurn ? '#27ae60' : '#2980b9';
-            indicator.innerText = isMyTurn ? "輪到你了！" : `等待 ${currentPlayer.nickname} 行動...`;
-
-            const pBar = document.getElementById('ingame-players-bar');
-            pBar.innerHTML = playerList.map(p => `
-                <div class="player-badge ${p.nickname===currentPlayer.nickname?'active-turn':''} ${p.nickname===myNickname?'is-me':''}">
+            
+            document.getElementById('turn-indicator').innerText = isMyTurn ? "輪到你了！" : `等待 ${currentPlayer.nickname}...`;
+            document.getElementById('turn-indicator').style.background = isMyTurn ? '#27ae60' : '#2980b9';
+            
+            document.getElementById('ingame-players-bar').innerHTML = playerList.map(p => 
+                `<div class="player-badge ${p.nickname===currentPlayer.nickname?'active-turn':''} ${p.nickname===myNickname?'is-me':''}">
                     ${p.nickname}: ${p.score}
-                </div>
-            `).join('');
+                </div>`
+            ).join('');
 
             updateDiceVisuals(gameState.dice, gameState.isRolling, gameState.locked);
-
             document.getElementById('rolls-left').innerText = gameState.rollsLeft;
+            
             const rollBtn = document.getElementById('roll-btn');
             const confirmBtn = document.getElementById('confirm-btn');
+            const isInfinite = isAdmin && document.getElementById('admin-infinite-rolls').checked;
 
             if(isMyTurn) {
-                const isInfinite = isAdmin && document.getElementById('admin-infinite-rolls').checked;
                 rollBtn.disabled = (!isInfinite && gameState.rollsLeft <= 0) || gameState.isRolling;
-                
                 if(!localSelection) confirmBtn.disabled = true;
             } else {
                 rollBtn.disabled = true;
                 confirmBtn.disabled = true;
-                clearLocalSelection();
+                localSelection = null;
             }
 
-            const processedList = playerList.map(p => ({
-                 ...p, 
-                 isMe: (p.nickname === myNickname) 
-            }));
-
-            renderScoreTables(processedList);
-        }
-
-        function renderScoreTables(players) {
-            const upper = document.getElementById('upper-section');
-            const lower = document.getElementById('lower-section');
-            
-            let headerHTML = `<tr><th class="icon-col"></th>`;
-            players.forEach(p => {
-                headerHTML += `<th class="player-header ${p.isMe?'is-me-header':''}">${p.nickname}</th>`;
-            });
-            headerHTML += `</tr>`;
-
-            // --- Upper Section ---
-            let upperHTML = headerHTML;
-            for(let i=1; i<=6; i++) {
-                const rowKey = `s${i}`;
-                upperHTML += `<tr id="row-${i}" class="score-row" onclick="window.handleScoreSelect('upper', ${i})">`;
-                
-                let dots = '';
-                for(let d=0; d<i; d++) { dots += '<div class="mini-dot"></div>'; }
-                
-                upperHTML += `<td class="icon-col"><div class="mini-die m-d-${i}">${dots}</div></td>`;
-                
-                players.forEach(p => {
-                    const val = (p.board && p.board[rowKey] !== undefined) ? p.board[rowKey] : '-';
-                    const idAttr = p.isMe ? `id="s${i}"` : ''; 
-                    const cellClass = p.isMe ? 'score-cell my-cell' : 'score-cell';
-                    const filledClass = (val !== '-') ? 'filled' : '';
-                    upperHTML += `<td ${idAttr} class="${cellClass} ${filledClass}">${val}</td>`;
-                });
-                upperHTML += `</tr>`;
-            }
-            
-            // Bonus
-            upperHTML += `<tr style="background:#333; height:25px;"><td class="icon-col" style="color:#bbb; font-size:0.7rem">獎勵</td>`;
-            players.forEach(p => {
-                let uSum = 0;
-                for(let k=1; k<=6; k++) if(p.board && p.board[`s${k}`] !== undefined) uSum += p.board[`s${k}`];
-                const bonus = uSum >= 63 ? 35 : 0;
-                const bonusColor = bonus > 0 ? '#2ecc71' : '#888';
-                
-                upperHTML += `<td class="score-cell" style="color:${bonusColor}; font-size:0.7rem;">
-                    ${bonus > 0 ? '35' : `${uSum}/63`}
-                </td>`;
-            });
-            upperHTML += `</tr>`;
-            
-            upper.innerHTML = upperHTML;
-
-            // --- Lower Section ---
-            const lowerCats = [
-                {k:'3ok', n:'3X'}, {k:'4ok', n:'4X'}, {k:'full', n:'🏠'},
-                {k:'sm-str', n:'小順'}, {k:'lg-str', n:'大順'}, 
-                {k:'yahtzee', n:'Y!'}, {k:'chance', n:'?'}
-            ];
-            
-            let lowerHTML = headerHTML;
-            lowerCats.forEach(c => {
-                 const rowKey = `s-${c.k}`;
-                 lowerHTML += `<tr id="row-${c.k}" class="score-row" onclick="window.handleScoreSelect('lower', '${c.k}')">`;
-                 lowerHTML += `<td class="symbol-text icon-col">${c.n}</td>`;
-                 players.forEach(p => {
-                    const val = (p.board && p.board[rowKey] !== undefined) ? p.board[rowKey] : '-';
-                    const idAttr = p.isMe ? `id="s-${c.k}"` : '';
-                    const cellClass = p.isMe ? 'score-cell my-cell' : 'score-cell';
-                    const filledClass = (val !== '-') ? 'filled' : '';
-                    lowerHTML += `<td ${idAttr} class="${cellClass} ${filledClass}">${val}</td>`;
-                 });
-                 lowerHTML += `</tr>`;
-            });
-            
-            lower.innerHTML = lowerHTML;
-
-            // 更新總分
-            const me = players.find(p => p.isMe);
-            if(me) {
-                 const realTotal = calculateRealScore(me.board || {});
-                 document.getElementById('grand-total').innerText = realTotal;
-            }
-            
-            if(localSelection) {
-                const cell = document.getElementById(localSelection.cellId);
-                if(cell) {
-                    cell.innerText = localSelection.score;
-                    cell.classList.add('preview-text');
-                    const row = cell.closest('tr');
-                    if(row) row.classList.add('selected-row');
-                }
-            }
-        }
-
-        function calculateRealScore(board) {
-            let uSum = 0;
-            for(let k=1; k<=6; k++) {
-                if(board[`s${k}`] !== undefined) uSum += board[`s${k}`];
-            }
-            const bonus = uSum >= 63 ? 35 : 0;
-            
-            let lSum = 0;
-            const lowerKeys = ['s-3ok','s-4ok','s-full','s-sm-str','s-lg-str','s-yahtzee','s-chance'];
-            lowerKeys.forEach(k => {
-                if(board[k] !== undefined) lSum += board[k];
-            });
-            
-            return uSum + bonus + lSum;
-        }
-
-        function updateDiceVisuals(values, isRolling, lockedStatus) {
-            for(let i=0; i<5; i++) {
-                const dieElem = document.getElementById(`die-${i}`);
-                const wrapper = document.querySelectorAll('.cube-wrapper')[i];
-                
-                if(lockedStatus[i]) wrapper.classList.add('locked');
-                else wrapper.classList.remove('locked');
-
-                if(isRolling && !lockedStatus[i]) {
-                    const rx = Math.random() * 720; 
-                    const ry = Math.random() * 720;
-                    dieElem.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
-                } else {
-                    setDieFace(dieElem, values[i]);
-                }
-            }
-        }
-
-        function setDieFace(elem, val) {
-            let x=0, y=0;
-            switch(val) {
-                case 1: x=0; y=0; break;
-                case 2: x=90; y=0; break; 
-                case 3: x=0; y=-90; break; 
-                case 4: x=0; y=90; break; 
-                case 5: x=-90; y=0; break; 
-                case 6: x=0; y=180; break; 
-            }
-            elem.style.transform = `rotateX(${x}deg) rotateY(${y}deg)`;
-        }
-
-        function showOverlay(title, sub, isRainbow, duration) {
-            const overlay = document.getElementById('special-event-overlay');
-            const titleEl = document.getElementById('overlay-title');
-            const subEl = document.getElementById('overlay-sub');
-            
-            const oldBtn = document.getElementById('overlay-exit-btn');
-            if(oldBtn) oldBtn.remove();
-
-            titleEl.innerText = title;
-            subEl.innerText = sub;
-            
-            if(isRainbow) overlay.classList.add('rainbow-bg');
-            else overlay.classList.remove('rainbow-bg');
-            
-            overlay.classList.add('active');
-
-            for(let i=0; i<50; i++) {
-                const conf = document.createElement('div');
-                conf.className = 'confetti';
-                conf.style.left = Math.random() * 100 + '%';
-                conf.style.top = -10 + 'px';
-                conf.style.backgroundColor = `hsl(${Math.random()*360}, 100%, 50%)`;
-                conf.style.animationDuration = (Math.random()*2 + 2) + 's';
-                conf.style.animationDelay = Math.random() * 1 + 's';
-                overlay.appendChild(conf);
-            }
-
-            if(duration === 0) {
-                const exitBtn = document.createElement('button');
-                exitBtn.id = 'overlay-exit-btn';
-                exitBtn.className = 'menu-btn primary';
-                exitBtn.style.marginTop = '30px';
-                exitBtn.style.pointerEvents = 'auto'; 
-                exitBtn.innerText = '回到首頁';
-                exitBtn.onclick = () => {
-                    location.reload(); 
-                };
-                overlay.appendChild(exitBtn);
-            } else if(duration) {
-                setTimeout(() => {
-                    overlay.classList.remove('active');
-                    overlay.classList.remove('rainbow-bg');
-                    document.querySelectorAll('.confetti').forEach(e => e.remove());
-                }, duration);
-            }
-        }
-
-        function triggerGlobalYahtzee(nickname) {
-            showOverlay(`YAHTZEE!`, `恭喜 ${nickname} 骰出 Yahtzee!`, true, 5000);
-        }
-        
-        let isGameOverShown = false;
-        function checkGameOver(playerList) {
-            if(isGameOverShown) return;
-            const allFinished = playerList.every(p => p.board && Object.keys(p.board).length >= 13);
-            
-            if(allFinished) {
-                isGameOverShown = true;
-                let winner = playerList[0];
-                let maxScore = -1;
-                
-                playerList.forEach(p => {
-                    const realScore = calculateRealScore(p.board || {});
-                    if(realScore > maxScore) {
-                        maxScore = realScore;
-                        winner = p;
-                    }
-                });
-                
-                let titleText = "";
-                let subText = "";
-                
-                if(isSoloMode || playerList.length === 1) {
-                    titleText = "遊戲結束";
-                    subText = `你的分數: ${maxScore}`;
-                } else {
-                    titleText = "恭喜獲勝！";
-                    subText = `${winner.nickname} 以 ${maxScore} 分獲勝！`;
-                }
-
-                setTimeout(() => {
-                    showOverlay(titleText, subText, true, 0); 
-                }, 1000);
-            }
+            renderScoreTables(playerList.map(p => ({...p, isMe: p.nickname===myNickname})));
         }
 
         window.handleRollClick = () => {
-            const getRollValue = (index) => {
+            const isInfinite = isAdmin && document.getElementById('admin-infinite-rolls').checked;
+            
+            // Get override values if admin
+            const getRollValue = (idx) => {
                 if(isAdmin) {
-                    const input = document.getElementById(`admin-d${index}`);
-                    const val = parseInt(input.value);
-                    if(val >= 1 && val <= 6) return val;
+                    const v = parseInt(document.getElementById(`admin-d${idx}`).value);
+                    if(v>=1 && v<=6) return v;
                 }
-                return Math.floor(Math.random() * 6) + 1;
+                return Math.floor(Math.random()*6)+1;
             };
 
-            const isInfinite = isAdmin && document.getElementById('admin-infinite-rolls').checked;
-
-            if(isSoloMode) {
+            if(currentGameMode === 'solo' || currentGameMode === 'challenge') {
                 if(!isInfinite && soloState.rollsLeft <= 0) return;
                 if(soloState.isRolling) return;
                 
                 soloState.isRolling = true;
-                updateDiceVisuals(soloState.dice, true, soloState.locked); 
+                updateDiceVisuals(soloState.dice, true, soloState.locked);
                 
                 setTimeout(() => {
                     const newDice = [...soloState.dice];
-                    for(let i=0; i<5; i++) {
-                        if(!soloState.locked[i]) {
-                            newDice[i] = getRollValue(i); 
-                        }
-                    }
+                    for(let i=0; i<5; i++) if(!soloState.locked[i]) newDice[i] = getRollValue(i);
                     soloState.dice = newDice;
-                    
-                    if(!isInfinite) soloState.rollsLeft -= 1; 
-                    
+                    if(!isInfinite) soloState.rollsLeft--;
                     soloState.isRolling = false;
+                    
                     updateDiceVisuals(soloState.dice, false, soloState.locked);
                     document.getElementById('rolls-left').innerText = soloState.rollsLeft;
                     document.getElementById('roll-btn').disabled = (!isInfinite && soloState.rollsLeft <= 0);
-                    clearLocalSelection();
+                    localSelection = null; document.getElementById('confirm-btn').disabled = true;
                 }, 600);
-                return;
+            } 
+            else if(currentGameMode === 'multiplayer' && isMyTurn) {
+                const state = currentRoomData.gameState;
+                if(!isInfinite && state.rollsLeft <= 0) return;
+                if(state.isRolling) return;
+                
+                update(ref(db, `${ROOMS_ROOT}/${currentRoomId}/gameState`), { isRolling: true });
+                const newDice = [...state.dice];
+                for(let i=0; i<5; i++) if(!state.locked[i]) newDice[i] = getRollValue(i);
+                
+                setTimeout(() => {
+                    update(ref(db, `${ROOMS_ROOT}/${currentRoomId}/gameState`), {
+                        dice: newDice, rollsLeft: isInfinite? state.rollsLeft : state.rollsLeft-1, isRolling: false
+                    });
+                }, 800);
             }
-
-            if(!isMyTurn) return;
-            const state = currentRoomData.gameState;
-            if(!isInfinite && state.rollsLeft <= 0) return;
-            if(state.isRolling) return;
-            
-            update(ref(db, `${DB_ROOT}/${currentRoomId}/gameState`), { isRolling: true });
-            
-            const newDice = [...state.dice];
-            for(let i=0; i<5; i++) {
-                if(!state.locked[i]) {
-                    newDice[i] = getRollValue(i); 
-                }
-            }
-            
-            setTimeout(() => {
-                update(ref(db, `${DB_ROOT}/${currentRoomId}/gameState`), {
-                    dice: newDice,
-                    rollsLeft: isInfinite ? state.rollsLeft : state.rollsLeft - 1,
-                    isRolling: false
-                });
-            }, 800);
-            clearLocalSelection();
         };
 
         window.toggleLock = (index) => {
             const isInfinite = isAdmin && document.getElementById('admin-infinite-rolls').checked;
+            if(currentGameMode === 'view_record') return;
 
-            if(isSoloMode) {
-                 if(!isInfinite && soloState.rollsLeft === 3) return; 
-                 if(soloState.isRolling) return;
-                 soloState.locked[index] = !soloState.locked[index];
-                 updateDiceVisuals(soloState.dice, false, soloState.locked);
-                 return;
+            if(currentGameMode === 'solo' || currentGameMode === 'challenge') {
+                if(!isInfinite && soloState.rollsLeft === 3) return; 
+                if(soloState.isRolling) return;
+                soloState.locked[index] = !soloState.locked[index];
+                updateDiceVisuals(soloState.dice, false, soloState.locked);
+            } else if (currentGameMode === 'multiplayer' && isMyTurn) {
+                 const state = currentRoomData.gameState;
+                 if(!isInfinite && state.rollsLeft === 3) return;
+                 if(state.isRolling) return;
+                 const newLocked = [...state.locked];
+                 newLocked[index] = !newLocked[index];
+                 update(ref(db, `${ROOMS_ROOT}/${currentRoomId}/gameState`), { locked: newLocked });
             }
-            if(!isMyTurn) return;
-            const state = currentRoomData.gameState;
-            if(!isInfinite && state.rollsLeft === 3) return;
-            if(state.isRolling) return;
-            const newLocked = [...state.locked];
-            newLocked[index] = !newLocked[index];
-            update(ref(db, `${DB_ROOT}/${currentRoomId}/gameState`), { locked: newLocked });
         };
 
-        window.handleScoreSelect = (type, key, force = false) => {
+        window.handleScoreSelect = (type, key) => {
+            if(currentGameMode === 'view_record') return;
             const isInfinite = isAdmin && document.getElementById('admin-infinite-rolls').checked;
             
-            let state;
-            let myBoard;
-            if (isSoloMode) {
-                state = soloState;
-                myBoard = soloState.board;
+            let state, board;
+            if(currentGameMode === 'solo' || currentGameMode === 'challenge') {
+                state = soloState; board = soloState.board;
             } else {
                 if(!isMyTurn) return;
                 state = currentRoomData.gameState;
-                if(!currentRoomData.players[myPlayerId]) return;
-                myBoard = currentRoomData.players[myPlayerId].board || {};
+                board = currentRoomData.players[myPlayerId].board || {};
             }
-            
-            if(!isInfinite && state.rollsLeft === 3 && state.dice[0] === 1 && !localSelection && !force) return;
+
+            if(!isInfinite && state.rollsLeft === 3 && state.dice[0] === 1 && !localSelection) return;
             if(state.isRolling) return;
-            
+
             let cellId = (type==='upper') ? `s${key}` : `s-${key}`;
-            if(myBoard[cellId] !== undefined) return;
-            
+            if(board[cellId] !== undefined) return;
+
             let score = calculateScore(type, key, state.dice);
-            clearLocalSelection();
+            
+            // Clear prev
+            if(localSelection && document.getElementById(localSelection.cellId)) {
+                document.getElementById(localSelection.cellId).innerText = '-';
+                document.getElementById(localSelection.cellId).classList.remove('preview-text');
+                document.getElementById(localSelection.cellId).closest('tr').classList.remove('selected-row');
+            }
+
+            localSelection = { type, key, score, cellId };
             const cell = document.getElementById(cellId);
-            if(!cell) return;
-            const row = cell.closest('tr');
             cell.innerText = score;
             cell.classList.add('preview-text');
-            row.classList.add('selected-row');
-            localSelection = { type, key, score, cellId };
+            cell.closest('tr').classList.add('selected-row');
             document.getElementById('confirm-btn').disabled = false;
         };
 
         window.handleConfirmClick = async () => {
             if(!localSelection) return;
             const { cellId, score, key } = localSelection;
+            const isInfinite = isAdmin && document.getElementById('admin-infinite-rolls').checked;
             
-            // --- NEW: Yahtzee Bonus / Animation Logic ---
-            let isPrimaryYahtzee = (key === 'yahtzee' && score === 50);
-            
-            // 檢查是否符合 Bonus Yahtzee 條件
-            // 條件：骰出 Yahtzee，且 Y! 格子已經有 >= 50 分
-            const dice = isSoloMode ? soloState.dice : currentRoomData.gameState.dice;
-            const isYahtzeeRoll = dice.every(d => d === dice[0]);
-            
-            let currentYahtzeeScore = 0;
-            if(isSoloMode) currentYahtzeeScore = soloState.board['s-yahtzee'] || 0;
-            else if(currentRoomData.players[myPlayerId].board) currentYahtzeeScore = currentRoomData.players[myPlayerId].board['s-yahtzee'] || 0;
-            
-            let bonusToAdd = 0;
-
-            // 觸發條件：是 Yahtzee 骰面 且 Yahtzee 格子已滿 (>=50)
-            if (isYahtzeeRoll && currentYahtzeeScore >= 50) {
-                bonusToAdd = 100;
+            let dice, currentYahtzeeScore = 0;
+            if(currentGameMode === 'solo' || currentGameMode === 'challenge') {
+                dice = soloState.dice;
+                currentYahtzeeScore = soloState.board['s-yahtzee'] || 0;
+            } else {
+                dice = currentRoomData.gameState.dice;
+                // Safe check for board existance
+                const pBoard = currentRoomData.players[myPlayerId].board || {};
+                currentYahtzeeScore = pBoard['s-yahtzee'] || 0;
             }
 
-            if(isSoloMode) {
-                if(isPrimaryYahtzee) {
-                    triggerGlobalYahtzee(myNickname);
-                }
+            // Yahtzee Logic
+            const isYahtzeeRoll = dice.every(d => d === dice[0]);
+            let bonusToAdd = (isYahtzeeRoll && currentYahtzeeScore >= 50) ? 100 : 0;
+            let isPrimaryYahtzee = (key === 'yahtzee' && score === 50);
+
+            if(currentGameMode === 'solo' || currentGameMode === 'challenge') {
+                if(isPrimaryYahtzee) showOverlay("YAHTZEE!", "漂亮！", true, 3000);
                 if(bonusToAdd > 0) {
-                    triggerGlobalYahtzee(myNickname + " (+100!)");
+                    showOverlay("BONUS YAHTZEE!", "+100 分！", true, 3000);
                     soloState.board['s-yahtzee'] = currentYahtzeeScore + bonusToAdd;
                 }
                 
                 soloState.board[cellId] = score;
                 soloState.score = calculateRealScore(soloState.board);
                 
+                // Reset Round
                 soloState.dice = [1,1,1,1,1];
                 soloState.locked = [false,false,false,false,false];
                 soloState.rollsLeft = 3;
                 
-                const soloPlayerList = [{
-                    id: myPlayerId,
-                    nickname: myNickname,
-                    score: soloState.score,
-                    board: soloState.board,
-                    isMe: true
-                }];
-                renderScoreTables(soloPlayerList);
+                // UI Update
+                renderScoreTables([{ nickname: myNickname, score: soloState.score, board: soloState.board, isMe: true }]);
                 updateDiceVisuals(soloState.dice, false, soloState.locked);
                 document.getElementById('rolls-left').innerText = "3";
                 document.getElementById('roll-btn').disabled = false;
                 localSelection = null;
                 document.getElementById('confirm-btn').disabled = true;
                 
-                if(isAdmin) {
-                     document.querySelectorAll('.admin-die-input').forEach(el => el.value = "");
+                if(isAdmin) document.querySelectorAll('.admin-die-input').forEach(el => el.value = "");
+                
+                checkGameOver([{ board: soloState.board, nickname: myNickname }]);
+            } 
+            else if(currentGameMode === 'multiplayer') {
+                // ... Multiplayer update logic (Same as before) ...
+                const roomId = currentRoomId;
+                const updates = {};
+                updates[`${ROOMS_ROOT}/${roomId}/players/${myPlayerId}/board/${cellId}`] = score;
+                if(bonusToAdd > 0) updates[`${ROOMS_ROOT}/${roomId}/players/${myPlayerId}/board/s-yahtzee`] = currentYahtzeeScore + bonusToAdd;
+                
+                // Calc Score
+                const newBoard = { ...(currentRoomData.players[myPlayerId].board || {}), [cellId]: score };
+                if(bonusToAdd > 0) newBoard['s-yahtzee'] = currentYahtzeeScore + bonusToAdd;
+                const newTotal = calculateRealScore(newBoard);
+                updates[`${ROOMS_ROOT}/${roomId}/players/${myPlayerId}/score`] = newTotal;
+
+                if(isPrimaryYahtzee || bonusToAdd > 0) {
+                     updates[`${ROOMS_ROOT}/${roomId}/lastEvent`] = { type: 'YAHTZEE', nickname: myNickname + (bonusToAdd?" (+100)":""), id: Date.now() };
                 }
 
-                checkGameOver(soloPlayerList);
-                return;
-            }
-
-            // Multiplayer Logic
-            if(!isMyTurn) return;
-            
-            const roomId = currentRoomId;
-            const myData = currentRoomData.players[myPlayerId];
-            
-            const updates = {};
-            
-            // 1. 更新選定格子的分數
-            updates[`${DB_ROOT}/${roomId}/players/${myPlayerId}/board/${cellId}`] = score;
-            
-            // 2. 如果觸發 Bonus，額外更新 Yahtzee 格子
-            if(bonusToAdd > 0) {
-                 updates[`${DB_ROOT}/${roomId}/players/${myPlayerId}/board/s-yahtzee`] = currentYahtzeeScore + bonusToAdd;
-            }
-
-            // 3. 計算並更新總分 (需包含剛剛可能加的 Bonus)
-            // 由於 calculateRealScore 是讀取 Board，我們需要模擬新的 Board 狀態
-            const newBoard = { ...(myData.board || {}), [cellId]: score };
-            if(bonusToAdd > 0) newBoard['s-yahtzee'] = currentYahtzeeScore + bonusToAdd;
-            
-            const newTotalScore = calculateRealScore(newBoard);
-            updates[`${DB_ROOT}/${roomId}/players/${myPlayerId}/score`] = newTotalScore;
-            
-            // 4. 事件觸發 (動畫)
-            if(isPrimaryYahtzee) {
-                updates[`${DB_ROOT}/${roomId}/lastEvent`] = {
-                    type: 'YAHTZEE',
-                    nickname: myNickname,
-                    id: Date.now()
-                };
-            } else if (bonusToAdd > 0) {
-                updates[`${DB_ROOT}/${roomId}/lastEvent`] = {
-                    type: 'YAHTZEE',
-                    nickname: myNickname + " (+100!)",
-                    id: Date.now()
-                };
-            }
-
-            const players = currentRoomData.players || {};
-            const playerIds = Object.keys(players);
-            const totalPlayers = playerIds.length;
-            const nextTurnIndex = (currentRoomData.currentTurnIndex + 1) % totalPlayers;
-            
-            updates[`${DB_ROOT}/${roomId}/gameState`] = {
-                dice: [1,1,1,1,1],
-                locked: [false,false,false,false,false],
-                rollsLeft: 3,
-                isRolling: false,
-                lastActionTimestamp: Date.now()
-            };
-            updates[`${DB_ROOT}/${roomId}/currentTurnIndex`] = nextTurnIndex;
-            
-            await update(ref(db), updates);
-            localSelection = null;
-            document.getElementById('confirm-btn').disabled = true;
-            
-            if(isAdmin) {
-                 document.querySelectorAll('.admin-die-input').forEach(el => el.value = "");
+                // Turn pass
+                // BUG FIX: Ensure we count players correctly from keys for next turn
+                const pIds = Object.keys(currentRoomData.players).sort(); // Basic string sort matches timestamp keys
+                const nextTurn = (currentRoomData.currentTurnIndex + 1) % pIds.length;
+                
+                updates[`${ROOMS_ROOT}/${roomId}/currentTurnIndex`] = nextTurn;
+                updates[`${ROOMS_ROOT}/${roomId}/gameState`] = { dice: [1,1,1,1,1], locked: [false,false,false,false,false], rollsLeft: 3, isRolling: false };
+                
+                await update(ref(db), updates);
+                localSelection = null; document.getElementById('confirm-btn').disabled = true;
+                if(isAdmin) document.querySelectorAll('.admin-die-input').forEach(el => el.value = "");
             }
         };
 
-        function clearLocalSelection() {
+        // --- 6. Helper Functions ---
+
+        function updateDiceVisuals(values, isRolling, lockedStatus) {
+            for(let i=0; i<5; i++) {
+                const dieElem = document.getElementById(`die-${i}`);
+                const wrapper = document.querySelectorAll('.cube-wrapper')[i];
+                if(lockedStatus[i]) wrapper.classList.add('locked'); else wrapper.classList.remove('locked');
+                
+                if(isRolling && !lockedStatus[i]) {
+                    dieElem.style.transform = `rotateX(${Math.random()*720}deg) rotateY(${Math.random()*720}deg)`;
+                } else {
+                    let x=0, y=0;
+                    switch(values[i]) {
+                        case 1: x=0; y=0; break; case 2: x=90; y=0; break; case 3: x=0; y=-90; break;
+                        case 4: x=0; y=90; break; case 5: x=-90; y=0; break; case 6: x=0; y=180; break;
+                    }
+                    dieElem.style.transform = `rotateX(${x}deg) rotateY(${y}deg)`;
+                }
+            }
+        }
+
+        function calculateRealScore(board) {
+            if(!board) return 0;
+            let uSum=0; for(let k=1; k<=6; k++) if(board[`s${k}`]) uSum+=board[`s${k}`];
+            let bonus = uSum>=63 ? 35 : 0;
+            let lSum=0;
+            ['s-3ok','s-4ok','s-full','s-sm-str','s-lg-str','s-yahtzee','s-chance'].forEach(k => { if(board[k]) lSum+=board[k]; });
+            return uSum + bonus + lSum;
+        }
+
+        function renderScoreTables(players) {
+            const upper = document.getElementById('upper-section');
+            const lower = document.getElementById('lower-section');
+            let header = `<tr><th class="icon-col"></th>` + players.map(p=>`<th class="player-header ${p.isMe?'is-me-header':''}">${p.nickname}</th>`).join('') + `</tr>`;
+            
+            // Upper
+            let uHTML = header;
+            for(let i=1; i<=6; i++) {
+                uHTML += `<tr class="score-row" onclick="window.handleScoreSelect('upper', ${i})">
+                    <td class="icon-col"><div class="mini-die m-d-${i}">${Array(i).fill('<div class="mini-dot"></div>').join('')}</div></td>
+                    ${players.map(p => {
+                        // FIX: Safely handle if p.board is undefined (Firebase removes empty objects)
+                        const b = p.board || {}; 
+                        const val = (b[`s${i}`] !== undefined) ? b[`s${i}`] : '-';
+                        return `<td ${p.isMe?`id="s${i}"`:''} class="score-cell ${p.isMe?'my-cell':''} ${val!=='-'?'filled':''}">${val}</td>`;
+                    }).join('')}
+                </tr>`;
+            }
+            // Bonus Row (CRITICAL FIX WAS HERE)
+            uHTML += `<tr style="background:#333;height:25px;"><td class="icon-col" style="color:#bbb;font-size:0.7rem">獎</td>
+                ${players.map(p => {
+                    let s=0; 
+                    const b = p.board || {}; // CRITICAL FIX: Default to empty object if board is missing
+                    for(let k=1;k<=6;k++) if(b[`s${k}`]) s+=b[`s${k}`];
+                    return `<td class="score-cell" style="color:${s>=63?'#2ecc71':'#888'};font-size:0.7rem;">${s>=63?'35':`${s}/63`}</td>`;
+                }).join('')}
+            </tr>`;
+            upper.innerHTML = uHTML;
+
+            // Lower
+            let lHTML = header;
+            const cats = [{k:'3ok',n:'3X'},{k:'4ok',n:'4X'},{k:'full',n:'🏠'},{k:'sm-str',n:'小順'},{k:'lg-str',n:'大順'},{k:'yahtzee',n:'Y!'},{k:'chance',n:'?'}];
+            cats.forEach(c => {
+                lHTML += `<tr class="score-row" onclick="window.handleScoreSelect('lower', '${c.k}')">
+                    <td class="symbol-text icon-col">${c.n}</td>
+                    ${players.map(p => {
+                        const b = p.board || {};
+                        const val = (b[`s-${c.k}`] !== undefined) ? b[`s-${c.k}`] : '-';
+                        return `<td ${p.isMe?`id="s-${c.k}"`:''} class="score-cell ${p.isMe?'my-cell':''} ${val!=='-'?'filled':''}">${val}</td>`;
+                    }).join('')}
+                </tr>`;
+            });
+            lower.innerHTML = lHTML;
+
+            // Update Total
+            const me = players.find(p => p.isMe);
+            if(me) document.getElementById('grand-total').innerText = calculateRealScore(me.board || {});
+            
+            // Restore Preview
             if(localSelection) {
-                const cell = document.getElementById(localSelection.cellId);
-                if(cell) {
-                    const row = cell.closest('tr');
-                    cell.innerText = '-';
-                    cell.classList.remove('preview-text');
-                    row.classList.remove('selected-row');
-                }
+                const c = document.getElementById(localSelection.cellId);
+                if(c) { c.innerText=localSelection.score; c.classList.add('preview-text'); c.closest('tr').classList.add('selected-row'); }
             }
-            localSelection = null;
-            document.getElementById('confirm-btn').disabled = true;
         }
 
-        function calculateScore(type, key, dice) {
-            if (type === 'upper') {
-                return dice.filter(d => d === key).length * key;
+        function checkGameOver(players) {
+            const me = players.find(p => p.nickname === myNickname); 
+            // Check if I finished (13 entries)
+            // Fix: Check if board exists
+            if(me && me.board && Object.keys(me.board).length >= 13) {
+                const finalScore = calculateRealScore(me.board);
+                
+                if(currentGameMode === 'challenge') {
+                    // Upload Score
+                    showOverlay("挑戰結束", `得分: ${finalScore}`, true, 0);
+                    
+                    // Push to Leaderboard
+                    push(ref(db, `${CHALLENGE_ROOT}/${currentChallengeRoomId}/leaderboard`), {
+                        nickname: myNickname,
+                        score: finalScore,
+                        board: me.board,
+                        timestamp: Date.now()
+                    });
+                    
+                    // Change Overlay button behavior
+                    setTimeout(() => {
+                        const exitBtn = document.getElementById('overlay-exit-btn');
+                        if(exitBtn) {
+                            exitBtn.innerText = "回到榜單";
+                            exitBtn.onclick = () => {
+                                document.getElementById('special-event-overlay').classList.remove('active');
+                                showView('challenge-room-detail');
+                            };
+                        }
+                    }, 100);
+
+                } else if (currentGameMode === 'solo') {
+                    showOverlay("遊戲結束", `得分: ${finalScore}`, true, 0);
+                } else {
+                    // Multiplayer: Check everyone
+                    // Fix: Check if board exists for everyone
+                    if(players.every(p => p.board && Object.keys(p.board).length >= 13)) {
+                        let winner = players[0]; let max = -1;
+                        players.forEach(p => { 
+                            let s = calculateRealScore(p.board || {}); 
+                            if(s>max){max=s; winner=p;} 
+                        });
+                        showOverlay("恭喜獲勝！", `${winner.nickname} 以 ${max} 分獲勝！`, true, 0);
+                    }
+                }
+            }
+        }
+
+        function showOverlay(title, sub, rainbow, duration) {
+            const ov = document.getElementById('special-event-overlay');
+            document.getElementById('overlay-title').innerText = title;
+            document.getElementById('overlay-sub').innerText = sub;
+            if(rainbow) ov.classList.add('rainbow-bg'); else ov.classList.remove('rainbow-bg');
+            ov.classList.add('active');
+            
+            // Cleanup old
+            document.querySelectorAll('.confetti').forEach(e=>e.remove());
+            const oldBtn = document.getElementById('overlay-exit-btn'); if(oldBtn) oldBtn.remove();
+
+            // Confetti
+            for(let i=0;i<50;i++){
+                const c = document.createElement('div'); c.className='confetti';
+                c.style.left=Math.random()*100+'%'; c.style.backgroundColor=`hsl(${Math.random()*360},100%,50%)`;
+                c.style.animationDuration=(2+Math.random()*2)+'s';
+                ov.appendChild(c);
+            }
+
+            if(duration === 0) {
+                const btn = document.createElement('button');
+                btn.id = 'overlay-exit-btn';
+                btn.className = 'menu-btn primary';
+                btn.style.marginTop = '30px'; btn.style.pointerEvents='auto';
+                btn.innerText = '回到首頁';
+                btn.onclick = () => location.reload();
+                ov.appendChild(btn);
             } else {
-                const counts = {};
-                dice.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
-                const countsArr = Object.values(counts);
-                const uniqueSorted = [...new Set(dice)].sort((a,b)=>a-b);
-                const sum = dice.reduce((a,b)=>a+b, 0);
-                switch(key) {
-                    case '3ok': return countsArr.some(c => c >= 3) ? sum : 0;
-                    case '4ok': return countsArr.some(c => c >= 4) ? sum : 0;
-                    case 'full': return (countsArr.includes(3) && countsArr.includes(2)) || countsArr.includes(5) ? 25 : 0;
-                    case 'sm-str': return isSequential(uniqueSorted, 4) ? 30 : 0;
-                    case 'lg-str': return isSequential(uniqueSorted, 5) ? 40 : 0;
-                    case 'yahtzee': return countsArr.includes(5) ? 50 : 0;
-                    case 'chance': return sum;
-                    default: return 0;
-                }
+                setTimeout(() => { ov.classList.remove('active'); }, duration);
+            }
+        }
+        
+        function calculateScore(type, key, dice) {
+            if (type === 'upper') return dice.filter(d => d === key).length * key;
+            const counts = {}; dice.forEach(x => counts[x] = (counts[x]||0)+1);
+            const vals = Object.values(counts);
+            const sum = dice.reduce((a,b)=>a+b,0);
+            const uniq = [...new Set(dice)].sort((a,b)=>a-b);
+            const isSeq = (n) => {
+                let max=1, cur=1; 
+                for(let i=0;i<uniq.length-1;i++) { if(uniq[i+1]===uniq[i]+1) cur++; else cur=1; if(cur>max) max=cur; }
+                return max >= n;
+            };
+
+            switch(key) {
+                case '3ok': return vals.some(c=>c>=3) ? sum : 0;
+                case '4ok': return vals.some(c=>c>=4) ? sum : 0;
+                case 'full': return (vals.includes(3)&&vals.includes(2)) || vals.includes(5) ? 25 : 0;
+                case 'sm-str': return isSeq(4) ? 30 : 0;
+                case 'lg-str': return isSeq(5) ? 40 : 0;
+                case 'yahtzee': return vals.includes(5) ? 50 : 0;
+                case 'chance': return sum;
+                default: return 0;
             }
         }
 
-        function isSequential(arr, n) {
-            let maxSeq = 1;
-            let currentSeq = 1;
-            for(let i=0; i<arr.length-1; i++) {
-                if (arr[i+1] === arr[i]+1) currentSeq++;
-                else currentSeq = 1;
-                if(currentSeq > maxSeq) maxSeq = currentSeq;
-            }
-            return maxSeq >= n;
+        // --- Enhanced Admin Logic ---
+
+        window.adminDeleteRoom = async (id) => { if(confirm("確定刪除此房間？")) remove(ref(db,`${ROOMS_ROOT}/${id}`)); };
+        
+        window.adminForceStart = async (id) => {
+             if(confirm("強制開始遊戲？")) update(ref(db, `${ROOMS_ROOT}/${id}`), { status: 'playing' });
+        };
+        
+        window.adminResetTurn = async (id) => {
+             // Emergency fix if turn gets stuck
+             if(confirm("重置回合骰子？")) update(ref(db, `${ROOMS_ROOT}/${id}/gameState`), { rollsLeft: 3, isRolling: false, locked: [false,false,false,false,false] });
+        };
+
+        window.showAdminRoomManager = () => {
+             showView('admin-room-view');
+             onValue(ref(db, ROOMS_ROOT), snap => {
+                 const list = document.getElementById('admin-room-list'); list.innerHTML='';
+                 const d = snap.val(); 
+                 if(!d) { list.innerHTML = "<div style='color:#777'>目前沒有活躍房間</div>"; return; }
+                 
+                 // Sort by newest first
+                 const rooms = Object.values(d).reverse();
+                 
+                 rooms.forEach(r => {
+                     const players = r.players ? Object.values(r.players) : [];
+                     const pCount = players.length;
+                     const pNames = players.map(p => `${p.nickname}(${p.score||0})`).join(', ');
+                     const lastEvt = r.lastEvent ? `Event: ${r.lastEvent.type} by ${r.lastEvent.nickname}` : '';
+
+                     list.innerHTML += `
+                     <div class="admin-room-card">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <span style="font-weight:bold; color:var(--accent-color);">${r.host} 的房間</span>
+                            <span style="font-size:0.8rem; background:${r.status==='playing'?'#27ae60':'#f39c12'}; padding:2px 6px; border-radius:4px;">${r.status}</span>
+                        </div>
+                        <div style="font-size:0.8rem; color:#ccc; line-height:1.4;">
+                            ID: <span style="font-family:monospace">${r.id}</span><br>
+                            玩家 (${pCount}/${r.maxPlayers}): ${pNames}<br>
+                            回合: ${r.currentTurnIndex || 0} | 剩餘擲骰: ${r.gameState?.rollsLeft}<br>
+                            ${lastEvt ? `<span style="color:#f1c40f">${lastEvt}</span>` : ''}
+                        </div>
+                        <div style="margin-top:8px; display:flex; justify-content:flex-end;">
+                            <button class="action-btn join-btn" onclick="window.adminForceStart('${r.id}')">強制開始</button>
+                            <button class="action-btn warn-btn" onclick="window.adminResetTurn('${r.id}')">重置回合</button>
+                            <button class="action-btn delete-btn" onclick="window.adminDeleteRoom('${r.id}')">刪除</button>
+                        </div>
+                     </div>`;
+                 });
+             });
         }
+
     </script>
 </body>
 </html>
