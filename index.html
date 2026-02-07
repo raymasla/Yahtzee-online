@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Yahtzee Online:></title>
+    <title>🎲Yahtzee Online:></title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -961,7 +961,7 @@
                     div.innerHTML = `
                         <div style="flex:1;">
                             <div style="font-weight:bold; color:var(--accent-color)">${room.name}</div>
-                            <div class="room-status">${isProtected ? '🔒 私人' : '🔓 公開'} | 榜單: ${room.leaderboard ? Object.keys(room.leaderboard).length : 0}人</div>
+                            <div class="room-status">${isProtected ? '🔒 私人' : '公開'} | 榜單: ${room.leaderboard ? Object.keys(room.leaderboard).length : 0}人</div>
                         </div>
                         <div>
                             <button class="action-btn view-btn" onclick="window.enterChallengeRoom('${key}', '${room.password||''}', '${room.name}')">進入</button>
