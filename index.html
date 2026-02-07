@@ -30,6 +30,8 @@
             padding: 10px;
             box-sizing: border-box;
             overflow-x: hidden;
+            /* 防止雙擊縮放 */
+            touch-action: manipulation;
         }
 
         .view-section {
@@ -326,6 +328,69 @@
             height: 18px;
             cursor: pointer;
         }
+
+        /* NUMPAD CUSTOM STYLES */
+        .numpad-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 5000;
+            display: none; justify-content: center; align-items: center;
+        }
+        .numpad-box {
+            background: #2c3e50;
+            padding: 20px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 320px;
+            border: 2px solid var(--accent-color);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.7);
+            display: flex; flex-direction: column; align-items: center;
+        }
+        .numpad-title {
+            color: #fff; font-size: 1.1rem; margin-bottom: 15px; font-weight: bold;
+        }
+        .numpad-display {
+            background: #1a1a1a;
+            color: var(--accent-color);
+            font-size: 1.8rem;
+            letter-spacing: 5px;
+            padding: 10px;
+            width: 100%;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 15px;
+            min-height: 40px;
+            border: 1px solid #444;
+            font-family: monospace;
+        }
+        .numpad-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            width: 100%;
+        }
+        .num-btn {
+            background: #34495e;
+            color: white;
+            border: 1px solid #555;
+            padding: 15px 0;
+            font-size: 1.4rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.1s;
+            font-weight: bold;
+        }
+        .num-btn:active { background: var(--accent-color); transform: scale(0.95); }
+        .num-btn.action-key { font-size: 1rem; background: #222; }
+        .num-btn.confirm-key { 
+            grid-column: span 3; 
+            background: var(--confirm-color); 
+            border-color: #27ae60; 
+            margin-top: 5px;
+        }
+        .num-btn.close-key {
+             background: #c0392b; border-color: #922b21;
+        }
+
     </style>
 </head>
 <body>
@@ -333,6 +398,28 @@
     <div id="special-event-overlay">
         <div id="overlay-title" class="cheer-text"></div>
         <div id="overlay-sub" class="sub-cheer"></div>
+    </div>
+
+    <div id="custom-numpad" class="numpad-overlay">
+        <div class="numpad-box">
+            <div id="numpad-title" class="numpad-title">輸入密碼</div>
+            <div id="numpad-display" class="numpad-display"></div>
+            <div class="numpad-grid">
+                <button class="num-btn" onclick="npInput('1')">1</button>
+                <button class="num-btn" onclick="npInput('2')">2</button>
+                <button class="num-btn" onclick="npInput('3')">3</button>
+                <button class="num-btn" onclick="npInput('4')">4</button>
+                <button class="num-btn" onclick="npInput('5')">5</button>
+                <button class="num-btn" onclick="npInput('6')">6</button>
+                <button class="num-btn" onclick="npInput('7')">7</button>
+                <button class="num-btn" onclick="npInput('8')">8</button>
+                <button class="num-btn" onclick="npInput('9')">9</button>
+                <button class="num-btn action-key close-key" onclick="npClose()">取消</button>
+                <button class="num-btn" onclick="npInput('0')">0</button>
+                <button class="num-btn action-key" onclick="npDel()">←</button>
+                <button class="num-btn confirm-key" onclick="npConfirm()">確認</button>
+            </div>
+        </div>
     </div>
 
     <div id="landing-view" class="view-section active-view">
@@ -427,7 +514,7 @@
         <div id="admin-challenge-controls" class="admin-controls-area">
             <h3 style="color:var(--admin-color); margin:0;">管理員：創建擂台</h3>
             <input type="text" id="new-challenge-name" placeholder="擂台名稱 (如: 週末盃)" style="width:90%">
-            <input type="text" id="new-challenge-pass" placeholder="密碼 (空白為公開)" style="width:90%">
+            <input type="text" id="new-challenge-pass" placeholder="設定密碼 (點擊輸入)" style="width:90%; cursor:pointer; background:#333; color:#ecf0f1;" readonly onclick="triggerNumpadForInput(this)">
             <button class="action-btn join-btn" onclick="createChallengeRoom()">建立</button>
         </div>
 
@@ -588,6 +675,67 @@
             score: 0
         };
         let localSelection = null; 
+
+        // --- Numpad Logic ---
+        let npBuffer = "";
+        let npCallback = null;
+        let npTargetInput = null; // For filling specific input fields
+
+        window.openNumpad = (title, callback) => {
+            document.getElementById('numpad-title').innerText = title || "輸入密碼";
+            npBuffer = "";
+            npCallback = callback;
+            npTargetInput = null;
+            updateNumpadDisplay();
+            document.getElementById('custom-numpad').style.display = 'flex';
+        };
+
+        window.triggerNumpadForInput = (inputElement) => {
+            npTargetInput = inputElement;
+            npBuffer = inputElement.value || "";
+            document.getElementById('numpad-title').innerText = "設定密碼";
+            updateNumpadDisplay();
+            document.getElementById('custom-numpad').style.display = 'flex';
+            
+            // Callback handles closing and updating value
+            npCallback = (val) => {
+                if(npTargetInput) npTargetInput.value = val;
+            };
+        };
+
+        window.npInput = (num) => {
+            if(npBuffer.length < 10) npBuffer += num;
+            updateNumpadDisplay();
+        };
+
+        window.npDel = () => {
+            if(npBuffer.length > 0) npBuffer = npBuffer.slice(0, -1);
+            updateNumpadDisplay();
+        };
+
+        window.npClose = () => {
+            document.getElementById('custom-numpad').style.display = 'none';
+            npBuffer = "";
+            npCallback = null;
+            npTargetInput = null;
+        };
+
+        window.npConfirm = () => {
+            const val = npBuffer;
+            if(npCallback) npCallback(val);
+            document.getElementById('custom-numpad').style.display = 'none';
+        };
+
+        function updateNumpadDisplay() {
+            // If it's for setting password (input field), show number, else show asterisks
+            if (npTargetInput) {
+                document.getElementById('numpad-display').innerText = npBuffer;
+            } else {
+                // Password Masking
+                document.getElementById('numpad-display').innerText = "*".repeat(npBuffer.length);
+            }
+        }
+
 
         // --- 1. Event Listeners & Init ---
 
@@ -845,18 +993,33 @@
         };
 
         window.enterChallengeRoom = async (roomId, password, roomName) => {
+            const proceed = () => {
+                currentChallengeRoomId = roomId;
+                document.getElementById('c-room-title').innerText = roomName;
+                document.getElementById('c-room-id').innerText = roomId;
+                showView('challenge-room-detail');
+                loadLeaderboard(roomId);
+            };
+
             if (password && password !== "" && !isAdmin && !isWangTester) {
-                const input = prompt("請輸入擂台密碼:");
-                if(input !== password) { alert("密碼錯誤"); return; }
+                // Use Custom Numpad instead of prompt
+                window.openNumpad(`請輸入密碼: ${roomName}`, (inputVal) => {
+                    if(inputVal === password) {
+                        proceed();
+                    } else {
+                        alert("密碼錯誤");
+                    }
+                });
+            } else {
+                proceed();
             }
+        };
 
-            currentChallengeRoomId = roomId;
-            document.getElementById('c-room-title').innerText = roomName;
-            document.getElementById('c-room-id').innerText = roomId;
-            showView('challenge-room-detail');
-
+        function loadLeaderboard(roomId) {
             // Listen to leaderboard
             onValue(ref(db, `${CHALLENGE_ROOT}/${roomId}/leaderboard`), (snapshot) => {
+                if(!document.getElementById('challenge-room-detail').classList.contains('active-view')) return;
+                
                 const list = document.getElementById('c-leaderboard-list');
                 list.innerHTML = "";
                 const data = snapshot.val();
@@ -891,7 +1054,7 @@
                     list.appendChild(div);
                 });
             });
-        };
+        }
 
         window.deleteChallengeEntry = async (entryKey) => {
             if(confirm("移除此紀錄？")) await remove(ref(db, `${CHALLENGE_ROOT}/${currentChallengeRoomId}/leaderboard/${entryKey}`));
