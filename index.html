@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Yahtzee:></title>
+    <title>3D Yahtzee Pro</title>
     <style>
         :root {
             /* 核心色票：暗黑藍色系 */
@@ -483,10 +483,27 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         
+        /* Admin Panels & Areas */
         #admin-panel { display: none; margin-top: 15px; padding: 15px; background: #2e1065; border: 1px solid #7c3aed; border-radius: 8px; flex-direction: column; align-items: center; width: 90%; max-width: 400px; }
         #admin-panel.active { display: flex; }
         .admin-dice-inputs { display: flex; gap: 5px; margin-bottom: 5px; }
         .admin-die-input { width: 30px !important; padding: 5px !important; margin: 0 !important; text-align: center; }
+
+        /* BUG FIX: Admin Controls Area (Challenge Create) - Default Hidden */
+        .admin-controls-area { 
+            display: none; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 10px; 
+            width: 100%; 
+            margin-bottom: 15px; 
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px dashed var(--admin-color);
+            padding: 15px;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        .admin-controls-area.active { display: flex; }
 
         /* Settings & Create Room */
         .create-room-panel {
