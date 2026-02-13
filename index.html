@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Yahtzee Pro</title>
+    <title>3D Yahtzee</title>
     <style>
         :root {
             /* 核心色票：暗黑藍色系 */
@@ -412,22 +412,79 @@
             /* Mobile adjustment needed */
         }
 
-        /* Overlay & Special Effects - NO GLOW */
+        /* * =========================================
+         * UPDATED: Mega Yahtzee Animation FX 
+         * 新增：超蝦趴 RGB 特效 & 故障風文字
+         * =========================================
+         */
         #special-event-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(15, 23, 42, 0.95); /* High opacity dark background */
+            background: rgba(15, 23, 42, 0.95);
             backdrop-filter: blur(5px);
             z-index: 3000; display: none;
             flex-direction: column; justify-content: center; align-items: center;
             overflow: hidden; pointer-events: none; 
         }
         #special-event-overlay.active { display: flex; pointer-events: auto; animation: fadeIn 0.3s; }
-        
-        .rainbow-bg {
-            /* Replace rainbow with a classy gold/dark gradient */
-            background: linear-gradient(135deg, #422006 0%, #a16207 100%);
+
+        /* RGB 流動背景動畫 */
+        @keyframes rgbFlow {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* 旋轉光線 */
+        @keyframes rotateRay {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 文字抖動故障風 */
+        @keyframes glitchShake {
+            0% { transform: translate(0); }
+            20% { transform: translate(-3px, 3px); }
+            40% { transform: translate(3px, -3px); }
+            60% { transform: translate(-3px, -3px); }
+            80% { transform: translate(3px, 3px); }
+            100% { transform: translate(0); }
         }
         
+        /* 文字大小縮放心跳 */
+        @keyframes heartBeat {
+            0% { transform: scale(1); }
+            15% { transform: scale(1.3); }
+            30% { transform: scale(1); }
+            45% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        /* 針對 MEGA 模式的容器樣式 */
+        .mega-mode {
+            /* 超高速 RGB 漸層 */
+            background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3);
+            background-size: 1800% 1800%;
+            animation: rgbFlow 2s ease infinite !important;
+        }
+
+        /* 旋轉光束背景 (Pseudo element) */
+        .mega-mode::before {
+            content: "";
+            position: absolute;
+            width: 200vmax;
+            height: 200vmax;
+            background: repeating-conic-gradient(
+                from 0deg,
+                rgba(255, 255, 255, 0.1) 0deg 10deg,
+                transparent 10deg 20deg
+            );
+            animation: rotateRay 10s linear infinite;
+            top: -50vmax;
+            left: -50vmax;
+            z-index: -1;
+            pointer-events: none;
+        }
+
         .cheer-text { 
             font-size: 3.5rem; 
             font-weight: 900; 
@@ -436,11 +493,29 @@
             text-align: center; 
             margin: 0 20px; 
             line-height: 1.2;
-            /* Hard shadow text */
             text-shadow: 4px 4px 0px rgba(0,0,0,0.5); 
             animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
         }
-        
+
+        /* Mega Mode 的文字特效 */
+        .mega-text {
+            font-size: 5rem !important; /* 變更大 */
+            color: transparent !important;
+            /* 金色 + 彩虹 混合字體 */
+            background: linear-gradient(to bottom, #fff 0%, #ffd700 40%, #ff8c00 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            
+            /* 強烈的邊框和陰影 */
+            -webkit-text-stroke: 2px #fff;
+            filter: drop-shadow(0 0 10px rgba(255,215,0,0.8)) drop-shadow(0 0 20px rgba(255,0,0,0.6));
+            
+            /* 複合動畫 */
+            animation: popIn 0.3s ease-out forwards, glitchShake 0.2s infinite, heartBeat 1.5s infinite !important;
+            transform-origin: center;
+        }
+
         @keyframes popIn {
             from { transform: scale(0.5); opacity: 0; }
             to { transform: scale(1); opacity: 1; }
@@ -452,11 +527,19 @@
             font-size: 1.5rem; 
             font-weight: bold; 
             text-align: center; 
+            z-index: 10;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
         
-        /* Confetti - Flat squares */
-        .confetti { position: absolute; width: 12px; height: 12px; background: #ef4444; animation: fall linear forwards; z-index: 3001; opacity: 0.9; }
-        @keyframes fall { to { transform: translateY(100vh) rotate(720deg); } }
+        /* Confetti - 更新為更多樣的彩帶與表情符號 */
+        .confetti { 
+            position: absolute; 
+            animation: fall linear forwards; 
+            z-index: 3001; 
+            opacity: 1; 
+            font-size: 24px; /* 對於 emoji */
+        }
+        @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
 
         /* Admin & Players Bar */
         .players-bar { 
@@ -718,7 +801,7 @@
         </div>
 
         <div style="width: 100%; margin: 15px 0;">
-            <div style="text-align:left; color:var(--text-muted); font-size:0.9rem; margin-bottom:8px; font-weight:600;">現有房間列表:</div>
+            <div style="text-align:left; color:var(--text-muted); font-size:0.9rem; margin-bottom:8px; font-weight600;">現有房間列表:</div>
             <div id="room-list-container" class="room-list"></div>
         </div>
         <button class="menu-btn" onclick="showView('landing-view')" style="margin-top: 20px; padding: 10px 20px;">離開</button>
@@ -1803,22 +1886,53 @@
             }
         }
 
+        // --- UPDATED: Enhanced Yahtzee Animation Function ---
         function showOverlay(title, sub, rainbow, duration) {
             const ov = document.getElementById('special-event-overlay');
-            document.getElementById('overlay-title').innerText = title;
+            const titleEl = document.getElementById('overlay-title');
+            
+            titleEl.innerText = title;
             document.getElementById('overlay-sub').innerText = sub;
-            if(rainbow) ov.classList.add('rainbow-bg'); else ov.classList.remove('rainbow-bg');
+            
+            // 啟用/禁用 超蝦趴 MEGA 模式
+            if(rainbow) {
+                ov.classList.add('mega-mode');
+                titleEl.classList.add('mega-text');
+            } else {
+                ov.classList.remove('mega-mode');
+                titleEl.classList.remove('mega-text');
+            }
+            
             ov.classList.add('active');
             
             // Cleanup old
             document.querySelectorAll('.confetti').forEach(e=>e.remove());
             const oldBtn = document.getElementById('overlay-exit-btn'); if(oldBtn) oldBtn.remove();
 
-            // Confetti
-            for(let i=0;i<50;i++){
-                const c = document.createElement('div'); c.className='confetti';
-                c.style.left=Math.random()*100+'%'; c.style.backgroundColor=`hsl(${Math.random()*360},70%,50%)`;
-                c.style.animationDuration=(2+Math.random()*2)+'s';
+            // Confetti - 根據不同模式產生不同數量的粒子
+            const count = rainbow ? 150 : 50; 
+            const emojis = ['🎲', '🔥', '💎', '🎉', '🏆', '💰'];
+
+            for(let i=0;i<count;i++){
+                const c = document.createElement('div'); 
+                c.className='confetti';
+                
+                // 如果是 Rainbow 模式，隨機使用 Emoji
+                if(rainbow && Math.random() > 0.5) {
+                    c.innerText = emojis[Math.floor(Math.random()*emojis.length)];
+                    c.style.background = 'transparent';
+                    c.style.fontSize = (20 + Math.random()*30) + 'px';
+                    c.style.transform = `rotate(${Math.random()*360}deg)`;
+                } else {
+                    // 傳統方塊
+                    c.style.backgroundColor = `hsl(${Math.random()*360}, 100%, 50%)`;
+                }
+
+                c.style.left = Math.random()*100+'%'; 
+                // 隨機動畫時間與延遲
+                c.style.animationDuration = (1.5 + Math.random()*2)+'s';
+                c.style.animationDelay = (Math.random()*0.5) + 's';
+                
                 ov.appendChild(c);
             }
 
@@ -1827,6 +1941,7 @@
                 btn.id = 'overlay-exit-btn';
                 btn.className = 'menu-btn primary';
                 btn.style.marginTop = '30px'; btn.style.pointerEvents='auto';
+                btn.style.zIndex = '3005';
                 btn.innerText = '回到首頁';
                 btn.onclick = () => location.reload();
                 ov.appendChild(btn);
