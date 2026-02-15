@@ -26,6 +26,9 @@
             --info-color: #64748b;      /* 藍灰 (資訊) */
 
             --die-size: 46px;           /* 稍微加大骰子 */
+            /* 自動計算一半的大小，確保3D結構完美閉合 */
+            --die-half: calc(var(--die-size) / 2);
+            
             --die-base-color: #f8fafc;
             --dot-color: #1e293b;
         }
@@ -204,7 +207,7 @@
         .delete-btn { background: var(--danger-color); margin-left: 5px;}
         .warn-btn { background: #d97706; margin-left: 5px; }
 
-        /* --- Dice 3D Styles (Refined) --- */
+        /* --- Dice 3D Styles (Fixed for Mobile) --- */
         .dice-board {
             display: flex;
             justify-content: center;
@@ -273,13 +276,13 @@
         }
         .locked .dot { background-color: #991b1b; }
         
-        /* 3D 轉換值微調以適應新尺寸 */
-        .front { transform: rotateY(0deg) translateZ(23px); }
-        .back { transform: rotateY(180deg) translateZ(23px); }
-        .right { transform: rotateY(90deg) translateZ(23px); }
-        .left { transform: rotateY(-90deg) translateZ(23px); }
-        .top { transform: rotateX(90deg) translateZ(23px); }
-        .bottom { transform: rotateX(-90deg) translateZ(23px); }
+        /* 3D 轉換值修復：使用 var(--die-half) 自動計算 */
+        .front  { transform: rotateY(0deg)   translateZ(var(--die-half)); }
+        .back   { transform: rotateY(180deg) translateZ(var(--die-half)); }
+        .right  { transform: rotateY(90deg)  translateZ(var(--die-half)); }
+        .left   { transform: rotateY(-90deg) translateZ(var(--die-half)); }
+        .top    { transform: rotateX(90deg)  translateZ(var(--die-half)); }
+        .bottom { transform: rotateX(-90deg) translateZ(var(--die-half)); }
 
         /* 遊戲控制按鈕區 */
         .controls { 
@@ -407,9 +410,8 @@
         }
 
         @media (max-width: 360px) {
+            /* 修正：小螢幕只需改變尺寸變數，3D位置會自動透過 calc 計算 */
             :root { --die-size: 38px; }
-            .front { transform: rotateY(0deg) translateZ(19px); } .back { transform: rotateY(180deg) translateZ(19px); }
-            /* Mobile adjustment needed */
         }
 
         /* * =========================================
