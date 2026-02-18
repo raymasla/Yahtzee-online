@@ -416,7 +416,7 @@
 
         /* * =========================================
          * UPDATED: Mega Yahtzee Animation FX 
-         * 新增：超蝦趴 RGB 特效 & 故障風文字
+         * 新增：超蝦趴 RGB 特效 & 故障
          * =========================================
          */
         #special-event-overlay {
@@ -1849,7 +1849,7 @@
                 
                 if(currentGameMode === 'challenge') {
                     // Upload Score
-                    showOverlay("挑戰結束", `得分: ${finalScore}`, true, 0);
+                    showOverlay("FINISH", `得分: ${finalScore}`, true, 0);
                     
                     // Push to Leaderboard
                     push(ref(db, `${CHALLENGE_ROOT}/${currentChallengeRoomId}/leaderboard`), {
@@ -1872,7 +1872,7 @@
                     }, 100);
 
                 } else if (currentGameMode === 'solo') {
-                    showOverlay("遊戲結束", `得分: ${finalScore}`, true, 0);
+                    showOverlay("FINISH", `得分: ${finalScore}`, true, 0);
                 } else {
                     // Multiplayer: Check everyone
                     // Fix: Check if board exists for everyone
@@ -1882,7 +1882,7 @@
                             let s = calculateRealScore(p.board || {}); 
                             if(s>max){max=s; winner=p;} 
                         });
-                        showOverlay("恭喜獲勝！", `${winner.nickname} 以 ${max} 分獲勝！`, true, 0);
+                        showOverlay("🎉", `${winner.nickname} 以 ${max} WIN`, true, 0);
                     }
                 }
             }
