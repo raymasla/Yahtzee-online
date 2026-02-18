@@ -416,7 +416,7 @@
 
         /* * =========================================
          * UPDATED: Mega Yahtzee Animation FX 
-         * 新增：超蝦趴 RGB 特效 & 故障
+         * 新增：超蝦趴 RGB 特效 & 故障風文字
          * =========================================
          */
         #special-event-overlay {
@@ -736,7 +736,7 @@
     </div>
 
     <div id="landing-view" class="view-section active-view">
-        <h1>🎲 3D Yahtzee Pro</h1>
+        <h1>🎲歡迎遊玩Yahtzee!🎲</h1>
         <div class="btn-group">
             <button class="menu-btn primary" onclick="goToNickname()">連線對戰 (匹配模式)</button>
             <button class="menu-btn" onclick="showChallengeLobby()">挑戰擂台 (排行榜)</button>
@@ -756,7 +756,7 @@
 
     <div id="nickname-view" class="view-section">
         <h1>輸入暱稱</h1>
-        <input type="text" id="nickname-input" placeholder="例如：骰子王阿明" maxlength="8">
+        <input type="text" id="nickname-input" placeholder="例如：賭神" maxlength="8">
         <div class="btn-group">
             <button class="menu-btn primary" onclick="enterLobby()">進入大廳</button>
             <button class="menu-btn" onclick="showView('landing-view')">返回</button>
@@ -1849,7 +1849,7 @@
                 
                 if(currentGameMode === 'challenge') {
                     // Upload Score
-                    showOverlay("FINISH", `得分: ${finalScore}`, true, 0);
+                    showOverlay("FINISH", `分數:${finalScore}`, true, 0);
                     
                     // Push to Leaderboard
                     push(ref(db, `${CHALLENGE_ROOT}/${currentChallengeRoomId}/leaderboard`), {
@@ -1882,7 +1882,7 @@
                             let s = calculateRealScore(p.board || {}); 
                             if(s>max){max=s; winner=p;} 
                         });
-                        showOverlay("🎉", `${winner.nickname} 以 ${max} WIN`, true, 0);
+                        showOverlay("WIN!", 恭喜`${winner.nickname}  ${max}分`, true, 0);
                     }
                 }
             }
